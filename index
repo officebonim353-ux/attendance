@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>רישום נוכחות לעובדים - מכללת הבונים בע"מ</title>
+  <style>
+    :root{
+      --bg:#f4f6f8;
+      --bg2:#eef1f4;
+      --card:#ffffff;
+      --line:#d9dee6;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --btn:#111827;
+      --btn2:#374151;
+      --ok:#16a34a;
+      --bad:#dc2626;
+      --shadow: 0 12px 30px rgba(17,24,39,.10);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 20% -10%, rgba(0,0,0,.04), transparent 60%),
+        radial-gradient(800px 480px at 90% 10%, rgba(0,0,0,.03), transparent 55%),
+        linear-gradient(180deg,var(--bg),var(--bg2));
+      min-height:100vh;
+    }
+    .wrap{max-width:640px;margin:0 auto;padding:18px 14px 92px}
+    .brand{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .brand h1{font-size:18px;line-height:1.25;margin:0}
+    .brand small{display:block;color:var(--muted);margin-top:6px}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:8px 10px;border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:#111827;font-size:12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,.06);
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:14px;
+      box-shadow: var(--shadow);
+      animation: pop .2s ease-out;
+    }
+    @keyframes pop{from{opacity:.0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    h2{font-size:15px;margin:6px 0 10px}
+    label{display:block;font-size:13px;margin:10px 0 6px;color:#111827}
+    input,select{
+      width:100%; padding:12px 12px; border-radius:14px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text); outline:none; font-size:16px
+    }
+    input::placeholder{color:#9ca3af}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row > *{flex:1 1 160px}
+    .btn{
+      width:100%; padding:12px 14px; border:0; border-radius:14px;
+      font-size:16px; font-weight:800; cursor:pointer;
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .btn:active{transform: scale(.99)}
+    .btn.primary{background:var(--btn); color:white}
+    .btn.ghost{background:#fff;color:var(--btn);border:1px solid var(--line)}
+    .btn.ok{background:var(--ok);color:white}
+    .btn.bad{background:var(--bad);color:white}
+    .note{
+      margin-top:10px;padding:10px;border-radius:14px;
+      background:#f9fafb;
+      border:1px solid var(--line)
+    }
+    .pill{
+      display:inline-block;padding:6px 10px;border-radius:999px;
+      background:#fff;border:1px solid var(--line);
+      font-size:12px;color:#111827
+    }
+    .hidden{display:none !important}
+    .kpi{display:flex;gap:10px;margin:10px 0}
+    .kpi .box{
+      flex:1;background:#fff;border:1px solid var(--line);
+      border-radius:14px;padding:10px
+    }
+    .kpi .v{font-size:18px;font-weight:900}
+    .kpi .t{font-size:12px;color:var(--muted);margin-top:4px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px;text-align:right;white-space:nowrap}
+    th{color:#111827;font-weight:900;background:#f9fafb}
+    .dangerText{color:#b91c1c}
+    .okText{color:#166534}
+    .divider{height:1px;background:var(--line);margin:10px 0}
+    .footerActions{
+      position:fixed;bottom:0;left:0;right:0;
+      padding:10px 12px;
+      background:rgba(244,246,248,.85);
+      backdrop-filter: blur(12px);
+      border-top:1px solid var(--line);
+    }
+    .footerActions .wrap2{max-width:640px;margin:0 auto}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div>
+        <h1>רישום נוכחות לעובדים - מכללת הבונים בע"מ</h1>
+        <small>כניסה/יציאה יומית · עובד רואה את עצמו · מנהל מפיק דוחות</small>
+      </div>
+      <div id="roleBadge" class="badge hidden">🛡️ מנהל</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginCard" class="card">
+      <h2>התחברות</h2>
+      <label>מייל</label>
+      <input id="email" type="email" placeholder="name@company.com" autocomplete="username" />
+      <label>סיסמה</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button class="btn primary" id="btnEmailLogin">התחבר/י</button>
+      <div class="note">
+        <small>
+          את המשתמשים מוסיפים ב-Firebase → Authentication → Users → Add user.
+        </small>
+      </div>
+      <p id="loginMsg" class="dangerText"></p>
+    </div>
+
+    <!-- EMPLOYEE -->
+    <div id="employeeCard" class="card hidden">
+      <h2>מסך עובד</h2>
+
+      <div class="kpi">
+        <div class="box">
+          <div class="v" id="kpiName">—</div>
+          <div class="t">שם מלא</div>
+        </div>
+        <div class="box">
+          <div class="v" id="kpiHours">0:00</div>
+          <div class="t">שעות החודש עד עכשיו</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <div><b>מייל:</b> <span id="pEmail">—</span></div>
+        <div><b>טלפון:</b> <span id="pPhone">—</span></div>
+        <div class="divider"></div>
+        <div><b>סטטוס היום:</b> <span id="todayStatus" class="pill">—</span></div>
+        <div style="margin-top:6px"><small>כל יום יש כניסה אחת ויציאה אחת.</small></div>
+      </div>
+
+      <div style="height:10px"></div>
+      <button class="btn ok" id="btnIn">כניסה</button>
+      <div style="height:10px"></div>
+      <button class="btn bad" id="btnOut">יציאה</button>
+
+      <p id="empMsg" class="dangerText"></p>
+      <p id="empOk" class="okText"></p>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="adminCard" class="card hidden">
+      <h2>מסך מנהל</h2>
+
+      <div class="note">
+        <div class="row">
+          <div>
+            <label>מתאריך</label>
+            <input id="fromDate" type="date" />
+          </div>
+          <div>
+            <label>עד תאריך</label>
+            <input id="toDate" type="date" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>עובד</label>
+            <select id="userSelect"></select>
+            <small>בחר/י “כולם” לדוח כולל.</small>
+          </div>
+          <div style="align-self:end">
+            <button class="btn primary" id="btnLoadReport">הפק דוח</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost" id="btnExportCsv">ייצוא ל-Excel (CSV)</button>
+          <button class="btn ghost" id="btnExportPdf">ייצוא ל-PDF</button>
+        </div>
+
+        <p id="adminMsg" class="dangerText"></p>
+        <p id="adminOk" class="okText"></p>
+      </div>
+
+      <div class="kpi">
+        <div class="box">
+          <div class="v" id="kpiRows">0</div>
+          <div class="t">רשומות</div>
+        </div>
+        <div class="box">
+          <div class="v" id="kpiTotal">0:00</div>
+          <div class="t">סך שעות בדוח</div>
+        </div>
+      </div>
+
+      <div style="overflow:auto">
+        <table id="reportTable">
+          <thead>
+            <tr>
+              <th>עובד</th>
+              <th>תאריך</th>
+              <th>כניסה</th>
+              <th>יציאה</th>
+              <th>סה״כ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footerActions">
+      <div class="wrap2">
+        <div class="row">
+          <button class="btn ghost" id="btnRefresh">רענון</button>
+          <button class="btn ghost" id="btnLogout">התנתקות</button>
+        </div>
+        <small>Firebase Auth + Firestore · GitHub + Vercel</small>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+      collection, getDocs, query, where, orderBy, Timestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+    // ✅ Firebase config (מוכן בדיוק לפי מה ששלחת)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAWAAW5FJxqjsiBMmCNsozKHtjuHLvcPew",
+      authDomain: "check-in-app-habonim.firebaseapp.com",
+      projectId: "check-in-app-habonim",
+      storageBucket: "check-in-app-habonim.firebasestorage.app",
+      messagingSenderId: "790942442230",
+      appId: "1:790942442230:web:9c7e6438bc758dba5ec2d7"
+    };
+
+    // ✅ מנהלים לפי מייל (2 מנהלים)
+    const ADMIN_EMAILS = [
+      "itzik@bonima.co.il",
+      "office.bonim353@gmail.com"
+    ].map(e => String(e).trim().toLowerCase());
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const $ = (id) => document.getElementById(id);
+    const show = (el) => el.classList.remove("hidden");
+    const hide = (el) => el.classList.add("hidden");
+
+    const pad2 = (n)=> String(n).padStart(2,"0");
+    const ymd = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const fmtTime = (d)=> new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(d);
+
+    function msToHHMM(ms){
+      const totalMin = Math.floor(ms/60000);
+      const h = Math.floor(totalMin/60);
+      const m = totalMin%60;
+      return `${h}:${pad2(m)}`;
+    }
+    function tsToDate(ts){
+      if(!ts) return null;
+      return (ts instanceof Timestamp) ? ts.toDate() : null;
+    }
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+    function isAdminEmail(email){
+      if(!email) return false;
+      return ADMIN_EMAILS.includes(String(email).trim().toLowerCase());
+    }
+    function setMode(mode){
+      hide($("loginCard"));
+      hide($("employeeCard"));
+      hide($("adminCard"));
+      hide($("roleBadge"));
+      if(mode === "login") show($("loginCard"));
+      if(mode === "employee") show($("employeeCard"));
+      if(mode === "admin"){ show($("adminCard")); show($("roleBadge")); }
+    }
+
+    // =========================
+    // Profile (ללא PIN)
+    // =========================
+    async function ensureProfile(user){
+      const role = (user.email && isAdminEmail(user.email)) ? "admin" : "employee";
+      const uref = doc(db, "users", user.uid);
+      const snap = await getDoc(uref);
+
+      const defaultName = (() => {
+        if (user.displayName) return user.displayName;
+        if (user.email && user.email.includes("@")) return user.email.split("@")[0];
+        return "עובד/ת";
+      })();
+
+      if(!snap.exists()){
+        const profile = {
+          fullName: defaultName,
+          email: user.email || "",
+          phone: user.phoneNumber || "",
+          role,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        await setDoc(uref, profile, { merge:true });
+        return profile;
+      }
+
+      const profile = snap.data();
+      const patch = {};
+      if(profile.role !== role) patch.role = role;
+      if(!profile.email && user.email) patch.email = user.email;
+      if(!profile.phone && user.phoneNumber) patch.phone = user.phoneNumber;
+      if(!profile.fullName) patch.fullName = defaultName;
+
+      if(Object.keys(patch).length){
+        patch.updatedAt = serverTimestamp();
+        await updateDoc(uref, patch);
+        return { ...profile, ...patch, role };
+      }
+      return profile;
+    }
+
+    // =========================
+    // Attendance (כניסה/יציאה אחת ביום)
+    // =========================
+    async function getTodayDocRef(uid){
+      return doc(db, "attendance", `${uid}_${ymd(new Date())}`);
+    }
+
+    async function loadTodayStatus(user){
+      const aref = await getTodayDocRef(user.uid);
+      const snap = await getDoc(aref);
+      if(!snap.exists()) return { status: "לא בוצע", inAt:null, outAt:null };
+
+      const d = snap.data();
+      const inD = tsToDate(d.inAt);
+      const outD = tsToDate(d.outAt);
+
+      let status = "לא בוצע";
+      if(inD && !outD) status = "בתוך משמרת";
+      if(inD && outD) status = "הסתיים היום";
+      return { status, inAt: inD, outAt: outD };
+    }
+
+    async function punch(type, user, profile){
+      const aref = await getTodayDocRef(user.uid);
+      const snap = await getDoc(aref);
+      const now = serverTimestamp();
+
+      if(!snap.exists()){
+        await setDoc(aref, {
+          uid: user.uid,
+          employeeName: profile.fullName || "",
+          dateYMD: ymd(new Date()),
+          inAt: type === "in" ? now : null,
+          outAt: type === "out" ? now : null,
+          updatedAt: now
+        }, { merge:true });
+        return;
+      }
+
+      const data = snap.data();
+      if(type === "in"){
+        if(data.inAt) throw new Error("כבר בוצעה כניסה היום.");
+        await updateDoc(aref, { inAt: now, updatedAt: now, employeeName: profile.fullName || "" });
+      } else {
+        if(!data.inAt) throw new Error("אין כניסה היום. נא לבצע כניסה קודם.");
+        if(data.outAt) throw new Error("כבר בוצעה יציאה היום.");
+        await updateDoc(aref, { outAt: now, updatedAt: now, employeeName: profile.fullName || "" });
+      }
+    }
+
+    async function calcMonthHours(uid, year, monthIndex){
+      const start = new Date(year, monthIndex, 1, 0,0,0,0);
+      const end = new Date(year, monthIndex+1, 1, 0,0,0,0);
+      const fromY = ymd(start);
+      const toY = ymd(new Date(end.getTime()-1));
+
+      const qy = query(
+        collection(db,"attendance"),
+        where("uid","==",uid),
+        where("dateYMD", ">=", fromY),
+        where("dateYMD", "<=", toY),
+        orderBy("dateYMD","asc")
+      );
+
+      const snap = await getDocs(qy);
+      let totalMs = 0;
+      snap.forEach(docu=>{
+        const d = docu.data();
+        const inD = tsToDate(d.inAt);
+        const outD = tsToDate(d.outAt);
+        if(inD && outD) totalMs += Math.max(0, outD - inD);
+      });
+      return totalMs;
+    }
+
+    async function refreshEmployeeUI(user, profile){
+      $("kpiName").textContent = profile.fullName || "—";
+      $("pEmail").textContent = profile.email || user.email || "—";
+      $("pPhone").textContent = profile.phone || user.phoneNumber || "—";
+
+      const st = await loadTodayStatus(user);
+      $("todayStatus").textContent =
+        st.status === "בתוך משמרת" ? "בתוך משמרת" :
+        st.status === "הסתיים היום" ? "הסתיים היום" :
+        "לא בוצע היום";
+
+      const now = new Date();
+      const ms = await calcMonthHours(user.uid, now.getFullYear(), now.getMonth());
+      $("kpiHours").textContent = msToHHMM(ms);
+    }
+
+    // =========================
+    // Admin reports
+    // =========================
+    let lastReportRows = [];
+
+    async function loadUsersForAdmin(){
+      const sel = $("userSelect");
+      sel.innerHTML = "";
+      const optAll = document.createElement("option");
+      optAll.value = "__ALL__";
+      optAll.textContent = "כולם";
+      sel.appendChild(optAll);
+
+      const usnap = await getDocs(collection(db,"users"));
+      usnap.forEach(d=>{
+        const u = d.data();
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = u.fullName ? `${u.fullName} (${u.role||"employee"})` : d.id;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function buildReport({from, to, uidOrAll}){
+      const fromY = ymd(from);
+      const toY = ymd(to);
+
+      let qy;
+      if(uidOrAll === "__ALL__"){
+        qy = query(
+          collection(db,"attendance"),
+          where("dateYMD", ">=", fromY),
+          where("dateYMD", "<=", toY),
+          orderBy("dateYMD","asc")
+        );
+      } else {
+        qy = query(
+          collection(db,"attendance"),
+          where("uid","==",uidOrAll),
+          where("dateYMD", ">=", fromY),
+          where("dateYMD", "<=", toY),
+          orderBy("dateYMD","asc")
+        );
+      }
+
+      const snap = await getDocs(qy);
+      const rows = [];
+      let totalMs = 0;
+
+      snap.forEach(docu=>{
+        const d = docu.data();
+        const inD = tsToDate(d.inAt);
+        const outD = tsToDate(d.outAt);
+        const ms = (inD && outD) ? Math.max(0, outD - inD) : 0;
+        totalMs += ms;
+
+        rows.push({
+          employeeName: d.employeeName || d.uid,
+          date: d.dateYMD,
+          inAt: inD ? fmtTime(inD) : "",
+          outAt: outD ? fmtTime(outD) : "",
+          total: ms ? msToHHMM(ms) : ""
+        });
+      });
+
+      return { rows, totalMs };
+    }
+
+    function renderReport(rows, totalMs){
+      lastReportRows = rows;
+      $("kpiRows").textContent = String(rows.length);
+      $("kpiTotal").textContent = msToHHMM(totalMs);
+
+      const tb = $("reportTable").querySelector("tbody");
+      tb.innerHTML = "";
+      for(const r of rows){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(r.employeeName)}</td>
+          <td>${escapeHtml(r.date)}</td>
+          <td>${escapeHtml(r.inAt)}</td>
+          <td>${escapeHtml(r.outAt)}</td>
+          <td>${escapeHtml(r.total)}</td>
+        `;
+        tb.appendChild(tr);
+      }
+    }
+
+    function downloadText(filename, text, mime="text/plain"){
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV(){
+      const header = ["Employee","Date","In","Out","Total"];
+      const lines = [header.join(",")];
+      for(const r of lastReportRows){
+        const line = [r.employeeName, r.date, r.inAt, r.outAt, r.total]
+          .map(v => `"${String(v||"").replaceAll('"','""')}"`).join(",");
+        lines.push(line);
+      }
+      downloadText(`attendance_${Date.now()}.csv`, lines.join("\n"), "text/csv;charset=utf-8");
+    }
+
+    async function exportPDF(){
+      const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js");
+      await import("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
+
+      const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
+      pdf.setFontSize(14);
+      pdf.text("דוח נוכחות - מכללת הבונים בע\"מ", 40, 40);
+
+      const body = lastReportRows.map(r => [r.employeeName, r.date, r.inAt, r.outAt, r.total]);
+      pdf.autoTable({
+        startY: 60,
+        head: [["עובד","תאריך","כניסה","יציאה","סה״כ"]],
+        body,
+        styles: { fontSize: 9 },
+      });
+
+      pdf.save(`attendance_${Date.now()}.pdf`);
+    }
+
+    function setDefaultDates(){
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
+      $("fromDate").value = ymd(first);
+      $("toDate").value = ymd(last);
+    }
+
+    // =========================
+    // UI events
+    // =========================
+    $("btnEmailLogin").onclick = async () => {
+      $("loginMsg").textContent = "";
+      const email = $("email").value.trim();
+      const password = $("password").value;
+      if(!email || !password) return $("loginMsg").textContent = "נא למלא מייל וסיסמה.";
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        $("loginMsg").textContent = `שגיאה בהתחברות: ${e.message}`;
+      }
+    };
+
+    $("btnLogout").onclick = async () => { await signOut(auth); };
+    $("btnRefresh").onclick = async () => { location.reload(); };
+
+    $("btnIn").onclick = async () => {
+      $("empMsg").textContent = "";
+      $("empOk").textContent = "";
+      const user = auth.currentUser;
+      if(!user) return;
+      try{
+        const profile = (await getDoc(doc(db,"users",user.uid))).data();
+        await punch("in", user, profile);
+        await refreshEmployeeUI(user, profile);
+        $("empOk").textContent = "✅ כניסה נרשמה בהצלחה";
+      } catch(e){
+        $("empMsg").textContent = e.message || String(e);
+      }
+    };
+
+    $("btnOut").onclick = async () => {
+      $("empMsg").textContent = "";
+      $("empOk").textContent = "";
+      const user = auth.currentUser;
+      if(!user) return;
+      try{
+        const profile = (await getDoc(doc(db,"users",user.uid))).data();
+        await punch("out", user, profile);
+        await refreshEmployeeUI(user, profile);
+        $("empOk").textContent = "✅ יציאה נרשמה בהצלחה";
+      } catch(e){
+        $("empMsg").textContent = e.message || String(e);
+      }
+    };
+
+    $("btnLoadReport").onclick = async () => {
+      $("adminMsg").textContent = "";
+      $("adminOk").textContent = "";
+      try{
+        const fromVal = $("fromDate").value;
+        const toVal = $("toDate").value;
+        const uid = $("userSelect").value;
+        if(!fromVal || !toVal) return $("adminMsg").textContent = "נא לבחור טווח תאריכים.";
+        const from = new Date(fromVal + "T00:00:00");
+        const to = new Date(toVal + "T00:00:00");
+        if(to < from) return $("adminMsg").textContent = "טווח תאריכים לא תקין.";
+
+        const { rows, totalMs } = await buildReport({from, to, uidOrAll: uid});
+        renderReport(rows, totalMs);
+        $("adminOk").textContent = `✅ דוח הופק (${rows.length} רשומות)`;
+      } catch(e){
+        $("adminMsg").textContent = e.message || String(e);
+      }
+    };
+
+    $("btnExportCsv").onclick = () => exportCSV();
+    $("btnExportPdf").onclick = () => exportPDF();
+
+    // =========================
+    // Auth state
+    // =========================
+    onAuthStateChanged(auth, async (user) => {
+      $("loginMsg").textContent = "";
+      $("empMsg").textContent = "";
+      $("empOk").textContent = "";
+      $("adminMsg").textContent = "";
+      $("adminOk").textContent = "";
+
+      if(!user){
+        setMode("login");
+        return;
+      }
+
+      try{
+        const profile = await ensureProfile(user);
+        const role = profile.role || "employee";
+
+        if(role === "admin"){
+          setMode("admin");
+          setDefaultDates();
+          await loadUsersForAdmin();
+          renderReport([], 0);
+        } else {
+          setMode("employee");
+          await refreshEmployeeUI(user, profile);
+        }
+      } catch(e){
+        $("loginMsg").textContent = e.message || String(e);
+        setMode("login");
+      }
+    });
+  </script>
+</body>
+</html>
