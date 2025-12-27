@@ -30,7 +30,7 @@
         linear-gradient(180deg,var(--bg),var(--bg2));
       min-height:100vh;
     }
-    .wrap{max-width:640px;margin:0 auto;padding:18px 14px 92px}
+    .wrap{max-width:720px;margin:0 auto;padding:18px 14px 92px}
     .brand{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
     .brand h1{font-size:18px;line-height:1.25;margin:0}
     .brand small{display:block;color:var(--muted);margin-top:6px}
@@ -52,6 +52,7 @@
     }
     @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     h2{font-size:15px;margin:6px 0 10px}
+    h3{font-size:14px;margin:12px 0 8px}
     label{display:block;font-size:13px;margin:10px 0 6px;color:#111827}
     input,select{
       width:100%; padding:12px 12px; border-radius:14px;
@@ -95,7 +96,7 @@
     th{color:#111827;font-weight:900;background:#f9fafb}
     .dangerText{color:#b91c1c}
     .okText{color:#166534}
-    .divider{height:1px;background:var(--line);margin:10px 0}
+    .divider{height:1px;background:var(--line);margin:12px 0}
     .footerActions{
       position:fixed;bottom:0;left:0;right:0;
       padding:10px 12px;
@@ -103,7 +104,9 @@
       backdrop-filter: blur(12px);
       border-top:1px solid var(--line);
     }
-    .footerActions .wrap2{max-width:640px;margin:0 auto}
+    .footerActions .wrap2{max-width:720px;margin:0 auto}
+    .muted{color:var(--muted);font-size:12px}
+    .mini{font-size:12px}
   </style>
 </head>
 
@@ -112,7 +115,8 @@
     <div class="brand">
       <div>
         <h1>רישום נוכחות לעובדים - מכללת הבונים בע"מ</h1>
-        <small>כניסה/יציאה יומית · עובד רואה את עצמו · מנהל מפיק דוחות</small>
+        <!-- ✅ לפי בקשתך -->
+        <small>כניסה/יציאה יומית</small>
       </div>
       <div id="roleBadge" class="badge hidden">🛡️ מנהל</div>
     </div>
@@ -122,19 +126,13 @@
       <h2>התחברות</h2>
 
       <label>מייל</label>
-      <!-- תיקון חשוב: מייל תמיד LTR כדי למנוע תווי RTL נסתרים -->
+      <!-- ✅ תיקון invalid-email: תמיד LTR -->
       <input id="email" dir="ltr" type="email" placeholder="name@company.com" autocomplete="username" />
 
       <label>סיסמה</label>
       <input id="password" dir="ltr" type="password" placeholder="••••••••" autocomplete="current-password" />
 
       <button class="btn primary" id="btnEmailLogin">התחבר/י</button>
-
-      <div class="note">
-        <small>
-          משתמשים מוסיפים ב-Firebase → Authentication → Users → Add user.
-        </small>
-      </div>
 
       <p id="loginMsg" class="dangerText"></p>
     </div>
@@ -175,7 +173,46 @@
     <div id="adminCard" class="card hidden">
       <h2>מסך מנהל</h2>
 
+      <!-- ✅ הוספת עובד מתוך האפליקציה -->
       <div class="note">
+        <h3>הוספת עובד</h3>
+        <div class="row">
+          <div>
+            <label>שם מלא</label>
+            <input id="newFullName" placeholder="ישראל ישראלי" />
+          </div>
+          <div>
+            <label>טלפון (לא חובה)</label>
+            <input id="newPhone" dir="ltr" placeholder="0501234567" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>מייל עובד</label>
+            <input id="newEmail" dir="ltr" placeholder="employee@company.com" />
+          </div>
+          <div>
+            <label>סיסמה זמנית</label>
+            <input id="newPass" dir="ltr" placeholder="לפחות 6 תווים" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="btnCreateEmployee">הוסף עובד</button>
+          <button class="btn ghost" id="btnSendReset">שלח איפוס סיסמה למייל</button>
+        </div>
+        <div class="muted">
+          טיפ: אפשר לתת לעובד סיסמה זמנית ואז לשלוח “איפוס סיסמה” כדי שיקבע לעצמו.
+        </div>
+        <p id="createEmpMsg" class="dangerText"></p>
+        <p id="createEmpOk" class="okText"></p>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- דוחות -->
+      <div class="note">
+        <h3>דוחות נוכחות</h3>
+
         <div class="row">
           <div>
             <label>מתאריך</label>
@@ -191,7 +228,7 @@
           <div>
             <label>עובד</label>
             <select id="userSelect"></select>
-            <small>בחר/י “כולם” לדוח כולל.</small>
+            <small class="mini">בחר/י “כולם” לדוח כולל.</small>
           </div>
           <div style="align-self:end">
             <button class="btn primary" id="btnLoadReport">הפק דוח</button>
@@ -234,46 +271,54 @@
       </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- FOOTER (בלי הטקסט שביקשת להוריד) -->
     <div class="footerActions">
       <div class="wrap2">
         <div class="row">
           <button class="btn ghost" id="btnRefresh">רענון</button>
           <button class="btn ghost" id="btnLogout">התנתקות</button>
         </div>
-        <small>Firebase Auth + Firestore · GitHub + Vercel</small>
       </div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+      setPersistence, browserLocalPersistence, inMemoryPersistence,
+      createUserWithEmailAndPassword, sendPasswordResetEmail
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
     import {
       getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
       collection, getDocs, query, where, orderBy, Timestamp
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // ✅ Firebase config (כמו ששלחת)
+    // ✅ firebaseConfig: שימי כאן את הפרויקט הנוכחי שלך (attendance-habonim)
     const firebaseConfig = {
-      apiKey: "AIzaSyAWAAW5FJxqjsiBMmCNsozKHtjuHLvcPew",
-      authDomain: "check-in-app-habonim.firebaseapp.com",
-      projectId: "check-in-app-habonim",
-      storageBucket: "check-in-app-habonim.firebasestorage.app",
-      messagingSenderId: "790942442230",
-      appId: "1:790942442230:web:9c7e6438bc758dba5ec2d7"
+      apiKey: "AIzaSyBBpoCWqanFcP7pU8pmosmYSPU92QD0lrY",
+      authDomain: "attendance-habonim.firebaseapp.com",
+      projectId: "attendance-habonim",
+      storageBucket: "attendance-habonim.firebasestorage.app",
+      messagingSenderId: "40149861354",
+      appId: "1:40149861354:web:0f865b122316bb6b3a2893"
     };
 
-    // ✅ מנהלים (2)
+    // ✅ מנהלים
     const ADMIN_EMAILS = [
       "itzik@bonima.co.il",
       "office.bonim353@gmail.com"
     ].map(e => String(e).trim().toLowerCase());
 
-    // init
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // ✅ Auth משני ליצירת עובדים בלי לנתק את המנהל
+    const adminCreateApp = initializeApp(firebaseConfig, "adminCreate");
+    const adminCreateAuth = getAuth(adminCreateApp);
+    await setPersistence(auth, browserLocalPersistence);
+    await setPersistence(adminCreateAuth, inMemoryPersistence);
 
     const $ = (id) => document.getElementById(id);
     const show = (el) => el.classList.remove("hidden");
@@ -315,15 +360,14 @@
       if(mode === "admin"){ show($("adminCard")); show($("roleBadge")); }
     }
 
-    // ✅ תיקון invalid-email: ניקוי תווים נסתרים + רווחים
+    // ✅ תיקון invalid-email: ניקוי תווי כיווניות + רווחים
     function cleanEmail(raw){
       return String(raw || "")
         .trim()
-        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "") // RTL/LTR marks
+        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
         .replace(/\s+/g, "");
     }
 
-    // Profile (ללא PIN)
     async function ensureProfile(user){
       const role = (user.email && isAdminEmail(user.email)) ? "admin" : "employee";
       const uref = doc(db, "users", user.uid);
@@ -363,7 +407,7 @@
       return profile;
     }
 
-    // Attendance (כניסה/יציאה אחת ביום)
+    // Attendance
     async function getTodayDocRef(uid){
       return doc(db, "attendance", `${uid}_${ymd(new Date())}`);
     }
@@ -468,7 +512,7 @@
         const u = d.data();
         const opt = document.createElement("option");
         opt.value = d.id;
-        opt.textContent = u.fullName ? `${u.fullName} (${u.role||"employee"})` : d.id;
+        opt.textContent = u.fullName ? `${u.fullName}` : d.id;
         sel.appendChild(opt);
       });
     }
@@ -587,6 +631,66 @@
       $("toDate").value = ymd(last);
     }
 
+    // ✅ הוספת עובד (מנהל)
+    async function createEmployee(){
+      $("createEmpMsg").textContent = "";
+      $("createEmpOk").textContent = "";
+
+      const fullName = ($("newFullName").value || "").trim();
+      const phone = ($("newPhone").value || "").trim();
+      const email = cleanEmail($("newEmail").value);
+      const pass = String($("newPass").value || "");
+
+      if(!fullName) return $("createEmpMsg").textContent = "נא למלא שם מלא.";
+      if(!email) return $("createEmpMsg").textContent = "נא למלא מייל.";
+      if(pass.length < 6) return $("createEmpMsg").textContent = "הסיסמה חייבת להיות לפחות 6 תווים.";
+
+      try{
+        // יצירת משתמש חדש ב-Auth (עם Auth משני כדי לא לנתק את המנהל)
+        const cred = await createUserWithEmailAndPassword(adminCreateAuth, email, pass);
+        const newUid = cred.user.uid;
+
+        // יצירת פרופיל ב-Firestore (מבוצע עם האדמין הראשי)
+        await setDoc(doc(db, "users", newUid), {
+          fullName,
+          email,
+          phone,
+          role: "employee",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        // ניקוי session של ה-Auth המשני
+        await signOut(adminCreateAuth);
+
+        $("createEmpOk").textContent = `✅ עובד נוסף בהצלחה: ${email}`;
+        $("newFullName").value = "";
+        $("newPhone").value = "";
+        $("newEmail").value = "";
+        $("newPass").value = "";
+
+        // לרענן רשימת עובדים לבחירה בדוחות
+        await loadUsersForAdmin();
+      } catch(e){
+        const code = e?.code ? `(${e.code}) ` : "";
+        $("createEmpMsg").textContent = `שגיאה בהוספת עובד: ${code}${e.message || e}`;
+      }
+    }
+
+    async function sendReset(){
+      $("createEmpMsg").textContent = "";
+      $("createEmpOk").textContent = "";
+      const email = cleanEmail($("newEmail").value);
+      if(!email) return $("createEmpMsg").textContent = "נא למלא מייל עובד כדי לשלוח איפוס.";
+      try{
+        await sendPasswordResetEmail(auth, email);
+        $("createEmpOk").textContent = `✅ נשלח מייל איפוס סיסמה ל: ${email}`;
+      } catch(e){
+        const code = e?.code ? `(${e.code}) ` : "";
+        $("createEmpMsg").textContent = `שגיאה בשליחת איפוס: ${code}${e.message || e}`;
+      }
+    }
+
     // UI events
     $("btnEmailLogin").onclick = async () => {
       $("loginMsg").textContent = "";
@@ -608,6 +712,9 @@
 
     $("btnLogout").onclick = async () => { await signOut(auth); };
     $("btnRefresh").onclick = async () => { location.reload(); };
+
+    $("btnCreateEmployee").onclick = createEmployee;
+    $("btnSendReset").onclick = sendReset;
 
     $("btnIn").onclick = async () => {
       $("empMsg").textContent = "";
@@ -677,6 +784,8 @@
       $("empOk").textContent = "";
       $("adminMsg").textContent = "";
       $("adminOk").textContent = "";
+      $("createEmpMsg").textContent = "";
+      $("createEmpOk").textContent = "";
 
       if(!user){
         setMode("login");
@@ -684,13 +793,6 @@
       }
 
       try{
-        // נוודא שמייל נקי (ליתר בטחון)
-        if(user.email){
-          const cleaned = cleanEmail(user.email);
-          // אם Firebase החזיר מייל עם תווים נסתרים (נדיר), פשוט נשתמש בנקי ללוגיקה שלנו
-          user = { ...user, email: cleaned };
-        }
-
         const profile = await ensureProfile(user);
         const role = profile.role || "employee";
 
