@@ -32,12 +32,10 @@
       min-height:100vh;
       line-height:1.45;
     }
-
     .wrap{max-width:980px;margin:0 auto;padding:22px 14px 110px}
     .brand{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
     .brand h1{font-size:19px;line-height:1.25;margin:0}
     .brand small{display:block;color:var(--muted);margin-top:8px;font-size:13px}
-
     .badge{
       display:inline-flex;align-items:center;gap:6px;
       padding:9px 12px;border-radius:999px;
@@ -47,7 +45,6 @@
       box-shadow: 0 6px 14px rgba(0,0,0,.06);
       white-space:nowrap;
     }
-
     .card{
       background:var(--card);
       border:1px solid var(--line);
@@ -55,12 +52,9 @@
       padding:16px;
       box-shadow: var(--shadow);
     }
-
     h2{font-size:16px;margin:6px 0 12px}
     h3{font-size:14px;margin:14px 0 10px}
-
     label{display:block;font-size:13px;margin:12px 0 6px;color:#111827}
-
     input,select{
       width:100%;
       padding:12px 12px;
@@ -72,13 +66,11 @@
       font-size:16px;
     }
     input::placeholder{color:#9ca3af}
-
     .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
     .row > *{flex:1 1 220px;min-width:220px}
     @media (max-width:720px){
       .row > *{min-width:unset;flex:1 1 160px}
     }
-
     .btn{
       width:100%;
       padding:12px 14px;
@@ -101,9 +93,7 @@
       background:#f9fafb;
       border:1px solid var(--line);
     }
-
     .hidden{display:none !important}
-
     .kpi{display:flex;gap:12px;margin:12px 0;flex-wrap:wrap}
     .kpi .box{
       flex:1 1 220px;
@@ -113,16 +103,13 @@
     }
     .kpi .v{font-size:18px;font-weight:900}
     .kpi .t{font-size:12px;color:var(--muted);margin-top:6px}
-
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px;text-align:right;vertical-align:top}
     th{color:#111827;font-weight:900;background:#f9fafb}
-
     .dangerText{color:#b91c1c;margin:10px 0 0}
     .okText{color:#166534;margin:10px 0 0}
     .muted{color:var(--muted);font-size:12px;line-height:1.5}
     .divider{height:1px;background:var(--line);margin:14px 0}
-
     .footerActions{
       position:fixed;bottom:0;left:0;right:0;
       padding:10px 12px;
@@ -131,16 +118,13 @@
       border-top:1px solid var(--line);
     }
     .footerActions .wrap2{max-width:980px;margin:0 auto}
-
     .tag{
       display:inline-block;border:1px solid var(--line);background:#fff;border-radius:999px;
       padding:5px 10px;font-size:12px;color:#111827;
       white-space:nowrap;
     }
-
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
-
     .tabs{display:flex;gap:10px;flex-wrap:wrap}
     .tabs .btn{max-width:220px}
   </style>
@@ -156,7 +140,6 @@
       <div id="roleBadge" class="badge hidden">🛡️ מנהל</div>
     </div>
 
-    <!-- LOGIN -->
     <div id="loginCard" class="card">
       <h2>התחברות</h2>
 
@@ -173,7 +156,6 @@
       <p id="loginMsg" class="dangerText"></p>
     </div>
 
-    <!-- EMPLOYEE -->
     <div id="employeeCard" class="card hidden">
       <h2>מסך עובד</h2>
 
@@ -204,7 +186,6 @@
       <p id="empOk" class="okText"></p>
     </div>
 
-    <!-- ADMIN -->
     <div id="adminCard" class="card hidden">
       <h2>מסך מנהל</h2>
 
@@ -215,7 +196,6 @@
         </div>
       </div>
 
-      <!-- USERS TAB -->
       <div id="usersTab" class="note">
         <h3>ניהול עובדים</h3>
 
@@ -291,7 +271,6 @@
         </div>
       </div>
 
-      <!-- REPORTS TAB -->
       <div id="reportsTab" class="note hidden">
         <h3>דוחות נוכחות</h3>
 
@@ -366,7 +345,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, Timestamp, collectionGroup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBBpoCWqanFcP7pU8pmosmYSPU920D0lrY",
@@ -470,12 +449,14 @@
       return profile;
     }
 
-    async function getTodayDocRef(uid){
-      return doc(db, "attendance", `${uid}_${ymd(new Date())}`);
+    // ✅ נוכחות נשמרת בתוך המשתמש:
+    // users/{uid}/attendance/{YYYY-MM-DD}
+    function todayAttendanceRef(uid){
+      return doc(db, "users", uid, "attendance", ymd(new Date()));
     }
 
     async function punch(type, user, profile){
-      const aref = await getTodayDocRef(user.uid);
+      const aref = todayAttendanceRef(user.uid);
       const snap = await getDoc(aref);
       const now = serverTimestamp();
 
@@ -508,10 +489,9 @@
       const fromY = ymd(start);
       const toY = ymd(new Date(end.getTime()-1));
 
-      // ⚠️ זה המקום שדורש אינדקס קומפוזיט (uid + dateYMD + orderBy).
+      // ✅ שאילתה על תת-אוסף -> לא דורש אינדקס קומפוזיט
       const qy = query(
-        collection(db,"attendance"),
-        where("uid","==",uid),
+        collection(db, "users", uid, "attendance"),
         where("dateYMD", ">=", fromY),
         where("dateYMD", "<=", toY),
         orderBy("dateYMD","asc")
@@ -671,17 +651,17 @@
 
       let qy;
       if(uidOrAll === "__ALL__"){
+        // ✅ collectionGroup מתוך כל המשתמשים
         qy = query(
-          collection(db,"attendance"),
+          collectionGroup(db, "attendance"),
           where("dateYMD", ">=", fromY),
           where("dateYMD", "<=", toY),
           orderBy("dateYMD","asc")
         );
       } else {
-        // ⚠️ גם פה נדרש אינדקס קומפוזיט.
+        // ✅ תת-אוסף של משתמש ספציפי
         qy = query(
-          collection(db,"attendance"),
-          where("uid","==",uidOrAll),
+          collection(db, "users", uidOrAll, "attendance"),
           where("dateYMD", ">=", fromY),
           where("dateYMD", "<=", toY),
           orderBy("dateYMD","asc")
