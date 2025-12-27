@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>רישום נוכחות לעובדים - מכללת הבונים בע"מ</title>
+
   <style>
     :root{
       --bg:#f4f6f8;
@@ -13,7 +14,6 @@
       --text:#1f2937;
       --muted:#6b7280;
       --btn:#111827;
-      --btn2:#374151;
       --ok:#16a34a;
       --bad:#dc2626;
       --shadow: 0 12px 30px rgba(17,24,39,.10);
@@ -48,9 +48,9 @@
       border-radius:var(--radius);
       padding:14px;
       box-shadow: var(--shadow);
-      animation: pop .2s ease-out;
+      animation: pop .18s ease-out;
     }
-    @keyframes pop{from{opacity:.0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     h2{font-size:15px;margin:6px 0 10px}
     label{display:block;font-size:13px;margin:10px 0 6px;color:#111827}
     input,select{
@@ -65,7 +65,7 @@
     .btn{
       width:100%; padding:12px 14px; border:0; border-radius:14px;
       font-size:16px; font-weight:800; cursor:pointer;
-      transition: transform .08s ease, filter .12s ease;
+      transition: transform .08s ease;
     }
     .btn:active{transform: scale(.99)}
     .btn.primary{background:var(--btn); color:white}
@@ -120,16 +120,22 @@
     <!-- LOGIN -->
     <div id="loginCard" class="card">
       <h2>התחברות</h2>
+
       <label>מייל</label>
-      <input id="email" type="email" placeholder="name@company.com" autocomplete="username" />
+      <!-- תיקון חשוב: מייל תמיד LTR כדי למנוע תווי RTL נסתרים -->
+      <input id="email" dir="ltr" type="email" placeholder="name@company.com" autocomplete="username" />
+
       <label>סיסמה</label>
-      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <input id="password" dir="ltr" type="password" placeholder="••••••••" autocomplete="current-password" />
+
       <button class="btn primary" id="btnEmailLogin">התחבר/י</button>
+
       <div class="note">
         <small>
-          את המשתמשים מוסיפים ב-Firebase → Authentication → Users → Add user.
+          משתמשים מוסיפים ב-Firebase → Authentication → Users → Add user.
         </small>
       </div>
+
       <p id="loginMsg" class="dangerText"></p>
     </div>
 
@@ -248,7 +254,7 @@
       collection, getDocs, query, where, orderBy, Timestamp
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // ✅ Firebase config (מוכן בדיוק לפי מה ששלחת)
+    // ✅ Firebase config (כמו ששלחת)
     const firebaseConfig = {
       apiKey: "AIzaSyAWAAW5FJxqjsiBMmCNsozKHtjuHLvcPew",
       authDomain: "check-in-app-habonim.firebaseapp.com",
@@ -258,12 +264,13 @@
       appId: "1:790942442230:web:9c7e6438bc758dba5ec2d7"
     };
 
-    // ✅ מנהלים לפי מייל (2 מנהלים)
+    // ✅ מנהלים (2)
     const ADMIN_EMAILS = [
       "itzik@bonima.co.il",
       "office.bonim353@gmail.com"
     ].map(e => String(e).trim().toLowerCase());
 
+    // init
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -308,9 +315,15 @@
       if(mode === "admin"){ show($("adminCard")); show($("roleBadge")); }
     }
 
-    // =========================
+    // ✅ תיקון invalid-email: ניקוי תווים נסתרים + רווחים
+    function cleanEmail(raw){
+      return String(raw || "")
+        .trim()
+        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "") // RTL/LTR marks
+        .replace(/\s+/g, "");
+    }
+
     // Profile (ללא PIN)
-    // =========================
     async function ensureProfile(user){
       const role = (user.email && isAdminEmail(user.email)) ? "admin" : "employee";
       const uref = doc(db, "users", user.uid);
@@ -350,9 +363,7 @@
       return profile;
     }
 
-    // =========================
     // Attendance (כניסה/יציאה אחת ביום)
-    // =========================
     async function getTodayDocRef(uid){
       return doc(db, "attendance", `${uid}_${ymd(new Date())}`);
     }
@@ -441,9 +452,7 @@
       $("kpiHours").textContent = msToHHMM(ms);
     }
 
-    // =========================
     // Admin reports
-    // =========================
     let lastReportRows = [];
 
     async function loadUsersForAdmin(){
@@ -578,19 +587,22 @@
       $("toDate").value = ymd(last);
     }
 
-    // =========================
     // UI events
-    // =========================
     $("btnEmailLogin").onclick = async () => {
       $("loginMsg").textContent = "";
-      const email = $("email").value.trim();
+      const email = cleanEmail($("email").value);
       const password = $("password").value;
-      if(!email || !password) return $("loginMsg").textContent = "נא למלא מייל וסיסמה.";
+
+      if(!email || !password){
+        $("loginMsg").textContent = "נא למלא מייל וסיסמה.";
+        return;
+      }
 
       try {
         await signInWithEmailAndPassword(auth, email, password);
       } catch (e) {
-        $("loginMsg").textContent = `שגיאה בהתחברות: ${e.message}`;
+        const code = e?.code ? `(${e.code}) ` : "";
+        $("loginMsg").textContent = `שגיאה בהתחברות: ${code}${e.message || e}`;
       }
     };
 
@@ -634,10 +646,18 @@
         const fromVal = $("fromDate").value;
         const toVal = $("toDate").value;
         const uid = $("userSelect").value;
-        if(!fromVal || !toVal) return $("adminMsg").textContent = "נא לבחור טווח תאריכים.";
+
+        if(!fromVal || !toVal){
+          $("adminMsg").textContent = "נא לבחור טווח תאריכים.";
+          return;
+        }
+
         const from = new Date(fromVal + "T00:00:00");
         const to = new Date(toVal + "T00:00:00");
-        if(to < from) return $("adminMsg").textContent = "טווח תאריכים לא תקין.";
+        if(to < from){
+          $("adminMsg").textContent = "טווח תאריכים לא תקין.";
+          return;
+        }
 
         const { rows, totalMs } = await buildReport({from, to, uidOrAll: uid});
         renderReport(rows, totalMs);
@@ -650,9 +670,7 @@
     $("btnExportCsv").onclick = () => exportCSV();
     $("btnExportPdf").onclick = () => exportPDF();
 
-    // =========================
     // Auth state
-    // =========================
     onAuthStateChanged(auth, async (user) => {
       $("loginMsg").textContent = "";
       $("empMsg").textContent = "";
@@ -666,6 +684,13 @@
       }
 
       try{
+        // נוודא שמייל נקי (ליתר בטחון)
+        if(user.email){
+          const cleaned = cleanEmail(user.email);
+          // אם Firebase החזיר מייל עם תווים נסתרים (נדיר), פשוט נשתמש בנקי ללוגיקה שלנו
+          user = { ...user, email: cleaned };
+        }
+
         const profile = await ensureProfile(user);
         const role = profile.role || "employee";
 
