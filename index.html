@@ -16,6 +16,7 @@
       --btn:#111827;
       --ok:#16a34a;
       --bad:#dc2626;
+      --warn:#b45309;
       --shadow: 0 12px 30px rgba(17,24,39,.10);
       --radius:18px;
     }
@@ -30,7 +31,7 @@
         linear-gradient(180deg,var(--bg),var(--bg2));
       min-height:100vh;
     }
-    .wrap{max-width:720px;margin:0 auto;padding:18px 14px 92px}
+    .wrap{max-width:900px;margin:0 auto;padding:18px 14px 92px}
     .brand{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
     .brand h1{font-size:18px;line-height:1.25;margin:0}
     .brand small{display:block;color:var(--muted);margin-top:6px}
@@ -48,9 +49,7 @@
       border-radius:var(--radius);
       padding:14px;
       box-shadow: var(--shadow);
-      animation: pop .18s ease-out;
     }
-    @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     h2{font-size:15px;margin:6px 0 10px}
     h3{font-size:14px;margin:12px 0 8px}
     label{display:block;font-size:13px;margin:10px 0 6px;color:#111827}
@@ -66,22 +65,16 @@
     .btn{
       width:100%; padding:12px 14px; border:0; border-radius:14px;
       font-size:16px; font-weight:800; cursor:pointer;
-      transition: transform .08s ease;
     }
-    .btn:active{transform: scale(.99)}
     .btn.primary{background:var(--btn); color:white}
     .btn.ghost{background:#fff;color:var(--btn);border:1px solid var(--line)}
     .btn.ok{background:var(--ok);color:white}
     .btn.bad{background:var(--bad);color:white}
+    .btn.warn{background:var(--warn);color:white}
     .note{
       margin-top:10px;padding:10px;border-radius:14px;
       background:#f9fafb;
       border:1px solid var(--line)
-    }
-    .pill{
-      display:inline-block;padding:6px 10px;border-radius:999px;
-      background:#fff;border:1px solid var(--line);
-      font-size:12px;color:#111827
     }
     .hidden{display:none !important}
     .kpi{display:flex;gap:10px;margin:10px 0}
@@ -92,10 +85,11 @@
     .kpi .v{font-size:18px;font-weight:900}
     .kpi .t{font-size:12px;color:var(--muted);margin-top:4px}
     table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px;text-align:right;white-space:nowrap}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px;text-align:right}
     th{color:#111827;font-weight:900;background:#f9fafb}
     .dangerText{color:#b91c1c}
     .okText{color:#166534}
+    .muted{color:var(--muted);font-size:12px}
     .divider{height:1px;background:var(--line);margin:12px 0}
     .footerActions{
       position:fixed;bottom:0;left:0;right:0;
@@ -104,9 +98,13 @@
       backdrop-filter: blur(12px);
       border-top:1px solid var(--line);
     }
-    .footerActions .wrap2{max-width:720px;margin:0 auto}
-    .muted{color:var(--muted);font-size:12px}
-    .mini{font-size:12px}
+    .footerActions .wrap2{max-width:900px;margin:0 auto}
+    .tag{
+      display:inline-block;border:1px solid var(--line);background:#fff;border-radius:999px;
+      padding:4px 10px;font-size:12px;color:#111827
+    }
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
   </style>
 </head>
 
@@ -115,7 +113,6 @@
     <div class="brand">
       <div>
         <h1>רישום נוכחות לעובדים - מכללת הבונים בע"מ</h1>
-        <!-- ✅ לפי בקשתך -->
         <small>כניסה/יציאה יומית</small>
       </div>
       <div id="roleBadge" class="badge hidden">🛡️ מנהל</div>
@@ -125,8 +122,12 @@
     <div id="loginCard" class="card">
       <h2>התחברות</h2>
 
+      <div class="note">
+        <div class="muted">חיבור לפרויקט:</div>
+        <div><b id="diagProject">—</b></div>
+      </div>
+
       <label>מייל</label>
-      <!-- ✅ תיקון invalid-email: תמיד LTR -->
       <input id="email" dir="ltr" type="email" placeholder="name@company.com" autocomplete="username" />
 
       <label>סיסמה</label>
@@ -156,14 +157,13 @@
         <div><b>מייל:</b> <span id="pEmail">—</span></div>
         <div><b>טלפון:</b> <span id="pPhone">—</span></div>
         <div class="divider"></div>
-        <div><b>סטטוס היום:</b> <span id="todayStatus" class="pill">—</span></div>
-        <div style="margin-top:6px"><small>כל יום יש כניסה אחת ויציאה אחת.</small></div>
+        <div><b>סטטוס עובד:</b> <span id="pStatus" class="tag">—</span></div>
       </div>
 
-      <div style="height:10px"></div>
-      <button class="btn ok" id="btnIn">כניסה</button>
-      <div style="height:10px"></div>
-      <button class="btn bad" id="btnOut">יציאה</button>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ok" id="btnIn">כניסה</button>
+        <button class="btn bad" id="btnOut">יציאה</button>
+      </div>
 
       <p id="empMsg" class="dangerText"></p>
       <p id="empOk" class="okText"></p>
@@ -173,44 +173,91 @@
     <div id="adminCard" class="card hidden">
       <h2>מסך מנהל</h2>
 
-      <!-- ✅ הוספת עובד מתוך האפליקציה -->
       <div class="note">
-        <h3>הוספת עובד</h3>
         <div class="row">
-          <div>
-            <label>שם מלא</label>
-            <input id="newFullName" placeholder="ישראל ישראלי" />
-          </div>
-          <div>
-            <label>טלפון (לא חובה)</label>
-            <input id="newPhone" dir="ltr" placeholder="0501234567" />
-          </div>
+          <button class="btn ghost" id="tabUsers">עובדים</button>
+          <button class="btn ghost" id="tabReports">דוחות</button>
         </div>
-        <div class="row">
-          <div>
-            <label>מייל עובד</label>
-            <input id="newEmail" dir="ltr" placeholder="employee@company.com" />
-          </div>
-          <div>
-            <label>סיסמה זמנית</label>
-            <input id="newPass" dir="ltr" placeholder="לפחות 6 תווים" />
-          </div>
-        </div>
-        <div class="row">
-          <button class="btn primary" id="btnCreateEmployee">הוסף עובד</button>
-          <button class="btn ghost" id="btnSendReset">שלח איפוס סיסמה למייל</button>
-        </div>
-        <div class="muted">
-          טיפ: אפשר לתת לעובד סיסמה זמנית ואז לשלוח “איפוס סיסמה” כדי שיקבע לעצמו.
-        </div>
-        <p id="createEmpMsg" class="dangerText"></p>
-        <p id="createEmpOk" class="okText"></p>
       </div>
 
-      <div class="divider"></div>
+      <!-- USERS TAB -->
+      <div id="usersTab" class="note">
+        <h3>ניהול עובדים</h3>
 
-      <!-- דוחות -->
-      <div class="note">
+        <div class="grid2">
+          <div>
+            <label>בחר עובד</label>
+            <select id="userSelectManage"></select>
+            <div class="muted" style="margin-top:6px">
+              יצירת משתמש חדש (מייל+סיסמה) נעשית פעם אחת ב-Firebase → Authentication → Users → Add user.
+              כאן מנהלים פרטים והשבתה מתוך האפליקציה.
+            </div>
+          </div>
+
+          <div>
+            <label>סטטוס</label>
+            <div class="row">
+              <div class="tag" id="manageStatusTag">—</div>
+              <button class="btn warn" id="btnToggleDisable">השבת/הפעל</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>שם מלא</label>
+            <input id="manageFullName" placeholder="ישראל ישראלי" />
+          </div>
+          <div>
+            <label>טלפון</label>
+            <input id="managePhone" dir="ltr" placeholder="0501234567" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>מייל</label>
+            <input id="manageEmail" dir="ltr" placeholder="employee@company.com" disabled />
+            <div class="muted">המייל מגיע מ-Firebase Auth ולכן לקריאה בלבד.</div>
+          </div>
+          <div>
+            <label>תפקיד</label>
+            <select id="manageRole">
+              <option value="employee">עובד</option>
+              <option value="admin">מנהל</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn primary" id="btnSaveUser">שמור פרטים</button>
+          <button class="btn ghost" id="btnReloadUsers">רענן רשימה</button>
+        </div>
+
+        <p id="usersMsg" class="dangerText"></p>
+        <p id="usersOk" class="okText"></p>
+
+        <div class="divider"></div>
+
+        <h3>רשימת עובדים</h3>
+        <div style="overflow:auto">
+          <table id="usersTable">
+            <thead>
+              <tr>
+                <th>שם</th>
+                <th>מייל</th>
+                <th>טלפון</th>
+                <th>תפקיד</th>
+                <th>סטטוס</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- REPORTS TAB -->
+      <div id="reportsTab" class="note hidden">
         <h3>דוחות נוכחות</h3>
 
         <div class="row">
@@ -227,8 +274,8 @@
         <div class="row">
           <div>
             <label>עובד</label>
-            <select id="userSelect"></select>
-            <small class="mini">בחר/י “כולם” לדוח כולל.</small>
+            <select id="userSelectReport"></select>
+            <div class="muted">בחר/י “כולם” לדוח כולל.</div>
           </div>
           <div style="align-self:end">
             <button class="btn primary" id="btnLoadReport">הפק דוח</button>
@@ -242,36 +289,35 @@
 
         <p id="adminMsg" class="dangerText"></p>
         <p id="adminOk" class="okText"></p>
-      </div>
 
-      <div class="kpi">
-        <div class="box">
-          <div class="v" id="kpiRows">0</div>
-          <div class="t">רשומות</div>
+        <div class="kpi">
+          <div class="box">
+            <div class="v" id="kpiRows">0</div>
+            <div class="t">רשומות</div>
+          </div>
+          <div class="box">
+            <div class="v" id="kpiTotal">0:00</div>
+            <div class="t">סך שעות בדוח</div>
+          </div>
         </div>
-        <div class="box">
-          <div class="v" id="kpiTotal">0:00</div>
-          <div class="t">סך שעות בדוח</div>
-        </div>
-      </div>
 
-      <div style="overflow:auto">
-        <table id="reportTable">
-          <thead>
-            <tr>
-              <th>עובד</th>
-              <th>תאריך</th>
-              <th>כניסה</th>
-              <th>יציאה</th>
-              <th>סה״כ</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div style="overflow:auto">
+          <table id="reportTable">
+            <thead>
+              <tr>
+                <th>עובד</th>
+                <th>תאריך</th>
+                <th>כניסה</th>
+                <th>יציאה</th>
+                <th>סה״כ</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- FOOTER (בלי הטקסט שביקשת להוריד) -->
     <div class="footerActions">
       <div class="wrap2">
         <div class="row">
@@ -284,19 +330,12 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import {
-      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-      setPersistence, browserLocalPersistence, inMemoryPersistence,
-      createUserWithEmailAndPassword, sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
-      collection, getDocs, query, where, orderBy, Timestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // ✅ firebaseConfig: שימי כאן את הפרויקט הנוכחי שלך (attendance-habonim)
+    // ✅ הקונפיג המדויק שנתת
     const firebaseConfig = {
-      apiKey: "AIzaSyBBpoCWqanFcP7pU8pmosmYSPU92QD0lrY",
+      apiKey: "AIzaSyBBpoCWqanFcP7pU8pmosmYSPU920D0lrY",
       authDomain: "attendance-habonim.firebaseapp.com",
       projectId: "attendance-habonim",
       storageBucket: "attendance-habonim.firebasestorage.app",
@@ -304,7 +343,6 @@
       appId: "1:40149861354:web:0f865b122316bb6b3a2893"
     };
 
-    // ✅ מנהלים
     const ADMIN_EMAILS = [
       "itzik@bonima.co.il",
       "office.bonim353@gmail.com"
@@ -312,22 +350,38 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // ✅ Auth משני ליצירת עובדים בלי לנתק את המנהל
-    const adminCreateApp = initializeApp(firebaseConfig, "adminCreate");
-    const adminCreateAuth = getAuth(adminCreateApp);
     await setPersistence(auth, browserLocalPersistence);
-    await setPersistence(adminCreateAuth, inMemoryPersistence);
+    const db = getFirestore(app);
 
     const $ = (id) => document.getElementById(id);
     const show = (el) => el.classList.remove("hidden");
     const hide = (el) => el.classList.add("hidden");
 
+    $("diagProject").textContent = firebaseConfig.projectId || "—";
+
+    function cleanEmail(raw){
+      return String(raw || "")
+        .trim()
+        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
+        .replace(/\s+/g, "");
+    }
+    function isAdminEmail(email){
+      if(!email) return false;
+      return ADMIN_EMAILS.includes(String(email).trim().toLowerCase());
+    }
+    function setMode(mode){
+      hide($("loginCard"));
+      hide($("employeeCard"));
+      hide($("adminCard"));
+      hide($("roleBadge"));
+      if(mode === "login") show($("loginCard"));
+      if(mode === "employee") show($("employeeCard"));
+      if(mode === "admin"){ show($("adminCard")); show($("roleBadge")); }
+    }
+
     const pad2 = (n)=> String(n).padStart(2,"0");
     const ymd = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
     const fmtTime = (d)=> new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(d);
-
     function msToHHMM(ms){
       const totalMin = Math.floor(ms/60000);
       const h = Math.floor(totalMin/60);
@@ -345,27 +399,6 @@
         .replaceAll(">","&gt;")
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
-    }
-    function isAdminEmail(email){
-      if(!email) return false;
-      return ADMIN_EMAILS.includes(String(email).trim().toLowerCase());
-    }
-    function setMode(mode){
-      hide($("loginCard"));
-      hide($("employeeCard"));
-      hide($("adminCard"));
-      hide($("roleBadge"));
-      if(mode === "login") show($("loginCard"));
-      if(mode === "employee") show($("employeeCard"));
-      if(mode === "admin"){ show($("adminCard")); show($("roleBadge")); }
-    }
-
-    // ✅ תיקון invalid-email: ניקוי תווי כיווניות + רווחים
-    function cleanEmail(raw){
-      return String(raw || "")
-        .trim()
-        .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "")
-        .replace(/\s+/g, "");
     }
 
     async function ensureProfile(user){
@@ -385,6 +418,7 @@
           email: user.email || "",
           phone: user.phoneNumber || "",
           role,
+          status: "active",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
@@ -396,8 +430,8 @@
       const patch = {};
       if(profile.role !== role) patch.role = role;
       if(!profile.email && user.email) patch.email = user.email;
-      if(!profile.phone && user.phoneNumber) patch.phone = user.phoneNumber;
       if(!profile.fullName) patch.fullName = defaultName;
+      if(!profile.status) patch.status = "active";
 
       if(Object.keys(patch).length){
         patch.updatedAt = serverTimestamp();
@@ -407,24 +441,8 @@
       return profile;
     }
 
-    // Attendance
     async function getTodayDocRef(uid){
       return doc(db, "attendance", `${uid}_${ymd(new Date())}`);
-    }
-
-    async function loadTodayStatus(user){
-      const aref = await getTodayDocRef(user.uid);
-      const snap = await getDoc(aref);
-      if(!snap.exists()) return { status: "לא בוצע", inAt:null, outAt:null };
-
-      const d = snap.data();
-      const inD = tsToDate(d.inAt);
-      const outD = tsToDate(d.outAt);
-
-      let status = "לא בוצע";
-      if(inD && !outD) status = "בתוך משמרת";
-      if(inD && outD) status = "הסתיים היום";
-      return { status, inAt: inD, outAt: outD };
     }
 
     async function punch(type, user, profile){
@@ -484,38 +502,138 @@
       $("kpiName").textContent = profile.fullName || "—";
       $("pEmail").textContent = profile.email || user.email || "—";
       $("pPhone").textContent = profile.phone || user.phoneNumber || "—";
-
-      const st = await loadTodayStatus(user);
-      $("todayStatus").textContent =
-        st.status === "בתוך משמרת" ? "בתוך משמרת" :
-        st.status === "הסתיים היום" ? "הסתיים היום" :
-        "לא בוצע היום";
+      $("pStatus").textContent = (profile.status === "disabled") ? "מושבת" : "פעיל";
 
       const now = new Date();
       const ms = await calcMonthHours(user.uid, now.getFullYear(), now.getMonth());
       $("kpiHours").textContent = msToHHMM(ms);
     }
 
-    // Admin reports
-    let lastReportRows = [];
+    // ===== ADMIN: Users =====
+    let usersCache = []; // {id, data}
 
-    async function loadUsersForAdmin(){
-      const sel = $("userSelect");
+    function fillSelectManage(){
+      const sel = $("userSelectManage");
+      sel.innerHTML = "";
+      for(const u of usersCache){
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        opt.textContent = `${u.data.fullName || u.data.email || u.id}`;
+        sel.appendChild(opt);
+      }
+    }
+    function fillSelectReport(){
+      const sel = $("userSelectReport");
       sel.innerHTML = "";
       const optAll = document.createElement("option");
       optAll.value = "__ALL__";
       optAll.textContent = "כולם";
       sel.appendChild(optAll);
 
-      const usnap = await getDocs(collection(db,"users"));
-      usnap.forEach(d=>{
-        const u = d.data();
+      for(const u of usersCache){
         const opt = document.createElement("option");
-        opt.value = d.id;
-        opt.textContent = u.fullName ? `${u.fullName}` : d.id;
+        opt.value = u.id;
+        opt.textContent = `${u.data.fullName || u.data.email || u.id}`;
         sel.appendChild(opt);
-      });
+      }
     }
+    function renderUsersTable(){
+      const tb = $("usersTable").querySelector("tbody");
+      tb.innerHTML = "";
+      for(const u of usersCache){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(u.data.fullName||"")}</td>
+          <td dir="ltr">${escapeHtml(u.data.email||"")}</td>
+          <td dir="ltr">${escapeHtml(u.data.phone||"")}</td>
+          <td>${escapeHtml(u.data.role||"employee")}</td>
+          <td>${(u.data.status==="disabled") ? "מושבת" : "פעיל"}</td>
+        `;
+        tb.appendChild(tr);
+      }
+    }
+
+    async function loadAllUsers(){
+      const snap = await getDocs(collection(db,"users"));
+      usersCache = [];
+      snap.forEach(d=> usersCache.push({ id:d.id, data:d.data() }));
+      usersCache.sort((a,b)=> String(a.data.fullName||"").localeCompare(String(b.data.fullName||""), "he"));
+      fillSelectManage();
+      fillSelectReport();
+      renderUsersTable();
+      if(usersCache.length){
+        $("userSelectManage").value = usersCache[0].id;
+        loadSelectedUserToForm();
+      }
+    }
+
+    function loadSelectedUserToForm(){
+      const uid = $("userSelectManage").value;
+      const found = usersCache.find(u=>u.id===uid);
+      if(!found) return;
+
+      $("manageFullName").value = found.data.fullName || "";
+      $("managePhone").value = found.data.phone || "";
+      $("manageEmail").value = found.data.email || "";
+      $("manageRole").value = found.data.role || "employee";
+
+      const disabled = found.data.status === "disabled";
+      $("manageStatusTag").textContent = disabled ? "מושבת" : "פעיל";
+      $("btnToggleDisable").textContent = disabled ? "הפעל עובד" : "השבת עובד";
+    }
+
+    async function saveUser(){
+      $("usersMsg").textContent = "";
+      $("usersOk").textContent = "";
+
+      const uid = $("userSelectManage").value;
+      const fullName = ($("manageFullName").value||"").trim();
+      const phone = ($("managePhone").value||"").trim();
+      const role = $("manageRole").value;
+
+      if(!uid) return $("usersMsg").textContent = "בחר עובד.";
+      if(!fullName) return $("usersMsg").textContent = "נא למלא שם מלא.";
+
+      try{
+        await updateDoc(doc(db,"users",uid), {
+          fullName, phone, role,
+          updatedAt: serverTimestamp()
+        });
+        $("usersOk").textContent = "✅ נשמר";
+        await loadAllUsers();
+        $("userSelectManage").value = uid;
+        loadSelectedUserToForm();
+      }catch(e){
+        $("usersMsg").textContent = e.message || String(e);
+      }
+    }
+
+    async function toggleDisable(){
+      $("usersMsg").textContent = "";
+      $("usersOk").textContent = "";
+
+      const uid = $("userSelectManage").value;
+      const found = usersCache.find(u=>u.id===uid);
+      if(!found) return;
+
+      const newStatus = (found.data.status === "disabled") ? "active" : "disabled";
+
+      try{
+        await updateDoc(doc(db,"users",uid), {
+          status: newStatus,
+          updatedAt: serverTimestamp()
+        });
+        $("usersOk").textContent = (newStatus==="disabled") ? "✅ עובד הושבת" : "✅ עובד הופעל";
+        await loadAllUsers();
+        $("userSelectManage").value = uid;
+        loadSelectedUserToForm();
+      }catch(e){
+        $("usersMsg").textContent = e.message || String(e);
+      }
+    }
+
+    // ===== ADMIN: Reports =====
+    let lastReportRows = [];
 
     async function buildReport({from, to, uidOrAll}){
       const fromY = ymd(from);
@@ -631,67 +749,11 @@
       $("toDate").value = ymd(last);
     }
 
-    // ✅ הוספת עובד (מנהל)
-    async function createEmployee(){
-      $("createEmpMsg").textContent = "";
-      $("createEmpOk").textContent = "";
+    // Tabs
+    function showUsersTab(){ show($("usersTab")); hide($("reportsTab")); }
+    function showReportsTab(){ hide($("usersTab")); show($("reportsTab")); }
 
-      const fullName = ($("newFullName").value || "").trim();
-      const phone = ($("newPhone").value || "").trim();
-      const email = cleanEmail($("newEmail").value);
-      const pass = String($("newPass").value || "");
-
-      if(!fullName) return $("createEmpMsg").textContent = "נא למלא שם מלא.";
-      if(!email) return $("createEmpMsg").textContent = "נא למלא מייל.";
-      if(pass.length < 6) return $("createEmpMsg").textContent = "הסיסמה חייבת להיות לפחות 6 תווים.";
-
-      try{
-        // יצירת משתמש חדש ב-Auth (עם Auth משני כדי לא לנתק את המנהל)
-        const cred = await createUserWithEmailAndPassword(adminCreateAuth, email, pass);
-        const newUid = cred.user.uid;
-
-        // יצירת פרופיל ב-Firestore (מבוצע עם האדמין הראשי)
-        await setDoc(doc(db, "users", newUid), {
-          fullName,
-          email,
-          phone,
-          role: "employee",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        // ניקוי session של ה-Auth המשני
-        await signOut(adminCreateAuth);
-
-        $("createEmpOk").textContent = `✅ עובד נוסף בהצלחה: ${email}`;
-        $("newFullName").value = "";
-        $("newPhone").value = "";
-        $("newEmail").value = "";
-        $("newPass").value = "";
-
-        // לרענן רשימת עובדים לבחירה בדוחות
-        await loadUsersForAdmin();
-      } catch(e){
-        const code = e?.code ? `(${e.code}) ` : "";
-        $("createEmpMsg").textContent = `שגיאה בהוספת עובד: ${code}${e.message || e}`;
-      }
-    }
-
-    async function sendReset(){
-      $("createEmpMsg").textContent = "";
-      $("createEmpOk").textContent = "";
-      const email = cleanEmail($("newEmail").value);
-      if(!email) return $("createEmpMsg").textContent = "נא למלא מייל עובד כדי לשלוח איפוס.";
-      try{
-        await sendPasswordResetEmail(auth, email);
-        $("createEmpOk").textContent = `✅ נשלח מייל איפוס סיסמה ל: ${email}`;
-      } catch(e){
-        const code = e?.code ? `(${e.code}) ` : "";
-        $("createEmpMsg").textContent = `שגיאה בשליחת איפוס: ${code}${e.message || e}`;
-      }
-    }
-
-    // UI events
+    // Events
     $("btnEmailLogin").onclick = async () => {
       $("loginMsg").textContent = "";
       const email = cleanEmail($("email").value);
@@ -713,19 +775,21 @@
     $("btnLogout").onclick = async () => { await signOut(auth); };
     $("btnRefresh").onclick = async () => { location.reload(); };
 
-    $("btnCreateEmployee").onclick = createEmployee;
-    $("btnSendReset").onclick = sendReset;
-
     $("btnIn").onclick = async () => {
       $("empMsg").textContent = "";
       $("empOk").textContent = "";
       const user = auth.currentUser;
       if(!user) return;
+
       try{
         const profile = (await getDoc(doc(db,"users",user.uid))).data();
+        if(profile?.status === "disabled"){
+          $("empMsg").textContent = "המשתמש מושבת. פנה למנהל.";
+          return;
+        }
         await punch("in", user, profile);
         await refreshEmployeeUI(user, profile);
-        $("empOk").textContent = "✅ כניסה נרשמה בהצלחה";
+        $("empOk").textContent = "✅ כניסה נרשמה";
       } catch(e){
         $("empMsg").textContent = e.message || String(e);
       }
@@ -736,29 +800,52 @@
       $("empOk").textContent = "";
       const user = auth.currentUser;
       if(!user) return;
+
       try{
         const profile = (await getDoc(doc(db,"users",user.uid))).data();
+        if(profile?.status === "disabled"){
+          $("empMsg").textContent = "המשתמש מושבת. פנה למנהל.";
+          return;
+        }
         await punch("out", user, profile);
         await refreshEmployeeUI(user, profile);
-        $("empOk").textContent = "✅ יציאה נרשמה בהצלחה";
+        $("empOk").textContent = "✅ יציאה נרשמה";
       } catch(e){
         $("empMsg").textContent = e.message || String(e);
       }
     };
 
+    $("tabUsers").onclick = showUsersTab;
+    $("tabReports").onclick = showReportsTab;
+
+    $("btnReloadUsers").onclick = async () => {
+      $("usersMsg").textContent = "";
+      $("usersOk").textContent = "";
+      try{
+        await loadAllUsers();
+        $("usersOk").textContent = "✅ עודכן";
+      }catch(e){
+        $("usersMsg").textContent = e.message || String(e);
+      }
+    };
+
+    $("userSelectManage").onchange = loadSelectedUserToForm;
+    $("btnSaveUser").onclick = saveUser;
+    $("btnToggleDisable").onclick = toggleDisable;
+
     $("btnLoadReport").onclick = async () => {
       $("adminMsg").textContent = "";
       $("adminOk").textContent = "";
+
       try{
         const fromVal = $("fromDate").value;
         const toVal = $("toDate").value;
-        const uid = $("userSelect").value;
+        const uid = $("userSelectReport").value;
 
         if(!fromVal || !toVal){
           $("adminMsg").textContent = "נא לבחור טווח תאריכים.";
           return;
         }
-
         const from = new Date(fromVal + "T00:00:00");
         const to = new Date(toVal + "T00:00:00");
         if(to < from){
@@ -769,13 +856,13 @@
         const { rows, totalMs } = await buildReport({from, to, uidOrAll: uid});
         renderReport(rows, totalMs);
         $("adminOk").textContent = `✅ דוח הופק (${rows.length} רשומות)`;
-      } catch(e){
+      }catch(e){
         $("adminMsg").textContent = e.message || String(e);
       }
     };
 
-    $("btnExportCsv").onclick = () => exportCSV();
-    $("btnExportPdf").onclick = () => exportPDF();
+    $("btnExportCsv").onclick = exportCSV;
+    $("btnExportPdf").onclick = exportPDF;
 
     // Auth state
     onAuthStateChanged(auth, async (user) => {
@@ -784,8 +871,8 @@
       $("empOk").textContent = "";
       $("adminMsg").textContent = "";
       $("adminOk").textContent = "";
-      $("createEmpMsg").textContent = "";
-      $("createEmpOk").textContent = "";
+      $("usersMsg").textContent = "";
+      $("usersOk").textContent = "";
 
       if(!user){
         setMode("login");
@@ -794,20 +881,41 @@
 
       try{
         const profile = await ensureProfile(user);
-        const role = profile.role || "employee";
 
-        if(role === "admin"){
+        if(profile.status === "disabled" && !isAdminEmail(user.email)){
+          await signOut(auth);
+          $("loginMsg").textContent = "המשתמש מושבת. פנה למנהל.";
+          setMode("login");
+          return;
+        }
+
+        if(profile.role === "admin"){
           setMode("admin");
           setDefaultDates();
-          await loadUsersForAdmin();
-          renderReport([], 0);
+          await loadAllUsers();
+          showUsersTab();
         } else {
           setMode("employee");
           await refreshEmployeeUI(user, profile);
         }
-      } catch(e){
+      }catch(e){
         $("loginMsg").textContent = e.message || String(e);
         setMode("login");
+      }
+    });
+
+    // Role bootstrap: ensure admins get role even if first doc created as employee
+    onAuthStateChanged(auth, async (user) => {
+      if(!user) return;
+      if(isAdminEmail(user.email)){
+        const uref = doc(db, "users", user.uid);
+        const snap = await getDoc(uref);
+        if(snap.exists()){
+          const d = snap.data();
+          if(d.role !== "admin"){
+            await updateDoc(uref, { role:"admin", updatedAt: serverTimestamp() });
+          }
+        }
       }
     });
   </script>
