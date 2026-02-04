@@ -693,6 +693,9 @@
 
     function renderReport(rows, totalMs){
       lastReportRows = rows;
+      $("btnExportPdf").disabled = rows.length === 0;
+      $("btnExportCsv").disabled = rows.length === 0;
+
       $("kpiRows").textContent = String(rows.length);
       $("kpiTotal").textContent = msToHHMM(totalMs);
 
@@ -721,33 +724,101 @@
       a.remove();
       URL.revokeObjectURL(url);
     }
+    function loadScriptOnce(src){
+      return new Promise((resolve, reject) => {
+        const exists = [...document.scripts].some(s => s.src === src);
+        if (exists) return resolve();
+
+        const s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Failed to load: " + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    function parseHHMM(str){
+      const m = String(str || "").match(/^(\d+):(\d{2})$/);
+      if(!m) return 0;
+      return (parseInt(m[1],10)*60) + parseInt(m[2],10);
+    }
 
     function exportCSV(){
+      if(!lastReportRows || !lastReportRows.length){
+        $("adminMsg").textContent = "אין נתונים לייצוא. קודם להפיק דוח.";
+        return;
+      }
+
       const header = ["Employee","Date","In","Out","Total"];
       const lines = [header.join(",")];
+
+      let totalMinutes = 0;
       for(const r of lastReportRows){
         const line = [r.employeeName, r.date, r.inAt, r.outAt, r.total]
           .map(v => `"${String(v||"").replaceAll('"','""')}"`).join(",");
         lines.push(line);
+        totalMinutes += parseHHMM(r.total);
       }
+
+      // שורת סיכום בסוף
+      const totalH = Math.floor(totalMinutes/60);
+      const totalM = String(totalMinutes%60).padStart(2,"0");
+      lines.push(`"TOTAL","","","","${totalH}:${totalM}"`);
+
+      downloadText(`attendance_${Date.now()}.csv`, lines.join("
+"), "text/csv;charset=utf-8");
+    }
       downloadText(`attendance_${Date.now()}.csv`, lines.join("\n"), "text/csv;charset=utf-8");
     }
 
     async function exportPDF(){
-      const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js");
-      await import("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
+      $("adminMsg").textContent = "";
+      $("adminOk").textContent = "";
 
-      const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
-      pdf.setFontSize(14);
-      pdf.text("דוח נוכחות - מכללת הבונים בע\"מ", 40, 40);
+      try{
+        if(!lastReportRows || !lastReportRows.length){
+          $("adminMsg").textContent = "אין נתונים לייצוא. קודם להפיק דוח.";
+          return;
+        }
 
-      const body = lastReportRows.map(r => [r.employeeName, r.date, r.inAt, r.outAt, r.total]);
-      pdf.autoTable({
-        startY: 60,
-        head: [["עובד","תאריך","כניסה","יציאה","סה״כ"]],
-        body,
-        styles: { fontSize: 9 },
-      });
+        // טעינה יציבה של jsPDF + AutoTable (UMD)
+        await loadScriptOnce("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+        await loadScriptOnce("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
+
+        const { jsPDF } = window.jspdf;
+        const autoTable = window.jspdfAutotable?.default || window.jspdfAutotable;
+
+        const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
+
+        pdf.setFontSize(14);
+        pdf.text('דוח נוכחות - מכללת הבונים בע"מ', 40, 40);
+
+        const totalMinutes = lastReportRows.reduce((sum, r) => sum + parseHHMM(r.total), 0);
+        const totalH = Math.floor(totalMinutes/60);
+        const totalM = String(totalMinutes%60).padStart(2,"0");
+        const totalStr = `${totalH}:${totalM}`;
+
+        pdf.setFontSize(11);
+        pdf.text(`רשומות: ${lastReportRows.length}    סה"כ שעות: ${totalStr}`, 40, 60);
+
+        const body = lastReportRows.map(r => [r.employeeName, r.date, r.inAt, r.outAt, r.total]);
+
+        autoTable(pdf, {
+          startY: 80,
+          head: [["עובד","תאריך","כניסה","יציאה","סה״כ"]],
+          body,
+          styles: { fontSize: 9, halign: "right" },
+          headStyles: { halign: "right" },
+          margin: { left: 40, right: 40 },
+        });
+
+        pdf.save(`attendance_${Date.now()}.pdf`);
+        $("adminOk").textContent = "✅ PDF נוצר בהצלחה";
+      }catch(e){
+        $("adminMsg").textContent = e?.message || String(e);
+      }
+    });
 
       pdf.save(`attendance_${Date.now()}.pdf`);
     }
