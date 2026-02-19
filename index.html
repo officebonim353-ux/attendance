@@ -329,6 +329,47 @@
             <tbody></tbody>
           </table>
         </div>
+
+        <!-- ✅ חדש: תיקון נוכחות (למנהל בלבד) -->
+        <div class="divider"></div>
+        <h3>תיקון נוכחות (מנהל בלבד)</h3>
+
+        <div class="grid2">
+          <div>
+            <label>בחר עובד</label>
+            <select id="fixUserSelect"></select>
+            <div class="muted" style="margin-top:6px">
+              כאן אפשר לתקן כניסה/יציאה לתאריך מסוים (למשל: עובד שכח לסמן יציאה).
+            </div>
+          </div>
+
+          <div>
+            <label>תאריך</label>
+            <input id="fixDate" type="date" />
+            <div class="muted" style="margin-top:6px">ברירת מחדל: אתמול.</div>
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:6px">
+          <div>
+            <label>שעת כניסה (HH:MM)</label>
+            <input id="fixInTime" dir="ltr" inputmode="numeric" placeholder="08:00" />
+          </div>
+          <div>
+            <label>שעת יציאה (HH:MM)</label>
+            <input id="fixOutTime" dir="ltr" inputmode="numeric" placeholder="16:00" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="btnLoadFix">טען רשומה</button>
+          <button class="btn primary" id="btnSaveFix">שמור תיקון</button>
+          <button class="btn warn" id="btnClearOut">נקה יציאה</button>
+        </div>
+
+        <p id="fixMsg" class="dangerText"></p>
+        <p id="fixOk" class="okText"></p>
+
       </div>
     </div>
 
@@ -344,8 +385,14 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, Timestamp, collectionGroup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+      setPersistence, browserLocalPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+      collection, getDocs, query, where, orderBy, Timestamp, collectionGroup
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBBpoCWqanFcP7pU8pmosmYSPU920D0lrY",
@@ -409,6 +456,28 @@
         .replaceAll("'","&#039;");
     }
 
+    // === חדש: עזרים לתיקון שעות ===
+    function normalizeHHMM(v){
+      const s = String(v||"").trim();
+      if(!s) return "";
+      // מאפשר גם 8:5 => 08:05
+      const m = s.match(/^(\d{1,2}):(\d{1,2})$/);
+      if(!m) return "";
+      const hh = Number(m[1]), mm = Number(m[2]);
+      if(!Number.isFinite(hh) || !Number.isFinite(mm)) return "";
+      if(hh < 0 || hh > 23 || mm < 0 || mm > 59) return "";
+      return `${pad2(hh)}:${pad2(mm)}`;
+    }
+
+    function combineDateAndTime(dateYMD, hhmm){
+      const t = normalizeHHMM(hhmm);
+      if(!dateYMD || !t) return null;
+      const [H, M] = t.split(":").map(Number);
+      // Date מקומי (שעון ישראל של המשתמש במכשיר)
+      return new Date(`${dateYMD}T${pad2(H)}:${pad2(M)}:00`);
+    }
+
+    // ===== Profiles =====
     async function ensureProfile(user){
       const role = (user.email && isAdminEmail(user.email)) ? "admin" : "employee";
       const uref = doc(db, "users", user.uid);
@@ -451,8 +520,11 @@
 
     // ✅ נוכחות נשמרת בתוך המשתמש:
     // users/{uid}/attendance/{YYYY-MM-DD}
+    function attendanceRef(uid, dateYMD){
+      return doc(db, "users", uid, "attendance", dateYMD);
+    }
     function todayAttendanceRef(uid){
-      return doc(db, "users", uid, "attendance", ymd(new Date()));
+      return attendanceRef(uid, ymd(new Date()));
     }
 
     async function punch(type, user, profile){
@@ -489,7 +561,6 @@
       const fromY = ymd(start);
       const toY = ymd(new Date(end.getTime()-1));
 
-      // ✅ שאילתה על תת-אוסף -> לא דורש אינדקס קומפוזיט
       const qy = query(
         collection(db, "users", uid, "attendance"),
         where("dateYMD", ">=", fromY),
@@ -547,6 +618,19 @@
         sel.appendChild(opt);
       }
     }
+
+    // ✅ חדש: dropdown לתיקון
+    function fillSelectFix(){
+      const sel = $("fixUserSelect");
+      sel.innerHTML = "";
+      for(const u of usersCache){
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        opt.textContent = `${u.data.fullName || u.data.email || u.id}`;
+        sel.appendChild(opt);
+      }
+    }
+
     function renderUsersTable(){
       const tb = $("usersTable").querySelector("tbody");
       tb.innerHTML = "";
@@ -570,10 +654,14 @@
       usersCache.sort((a,b)=> String(a.data.fullName||"").localeCompare(String(b.data.fullName||""), "he"));
       fillSelectManage();
       fillSelectReport();
+      fillSelectFix();
       renderUsersTable();
+
       if(usersCache.length){
         $("userSelectManage").value = usersCache[0].id;
         loadSelectedUserToForm();
+
+        $("fixUserSelect").value = usersCache[0].id;
       }
     }
 
@@ -651,7 +739,6 @@
 
       let qy;
       if(uidOrAll === "__ALL__"){
-        // ✅ collectionGroup מתוך כל המשתמשים
         qy = query(
           collectionGroup(db, "attendance"),
           where("dateYMD", ">=", fromY),
@@ -659,7 +746,6 @@
           orderBy("dateYMD","asc")
         );
       } else {
-        // ✅ תת-אוסף של משתמש ספציפי
         qy = query(
           collection(db, "users", uidOrAll, "attendance"),
           where("dateYMD", ">=", fromY),
@@ -758,11 +844,149 @@
       const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
       $("fromDate").value = ymd(first);
       $("toDate").value = ymd(last);
+
+      // ✅ חדש: תיקון ברירת מחדל = אתמול
+      const y = new Date(now);
+      y.setDate(now.getDate() - 1);
+      $("fixDate").value = ymd(y);
     }
 
     function showUsersTab(){ show($("usersTab")); hide($("reportsTab")); }
     function showReportsTab(){ hide($("usersTab")); show($("reportsTab")); }
 
+    // ===== ADMIN: Fix Attendance =====
+    function clearFixMessages(){
+      $("fixMsg").textContent = "";
+      $("fixOk").textContent = "";
+    }
+
+    async function loadFixRecord(){
+      clearFixMessages();
+
+      const uid = $("fixUserSelect").value;
+      const dateYMD = $("fixDate").value;
+
+      if(!uid) return $("fixMsg").textContent = "בחר עובד לתיקון.";
+      if(!dateYMD) return $("fixMsg").textContent = "בחר תאריך.";
+
+      try{
+        const aref = attendanceRef(uid, dateYMD);
+        const snap = await getDoc(aref);
+
+        if(!snap.exists()){
+          $("fixInTime").value = "";
+          $("fixOutTime").value = "";
+          $("fixOk").textContent = "ℹ️ אין רשומה לתאריך הזה (אפשר ליצור באמצעות שמירה).";
+          return;
+        }
+
+        const d = snap.data();
+        const inD = tsToDate(d.inAt);
+        const outD = tsToDate(d.outAt);
+
+        $("fixInTime").value = inD ? `${pad2(inD.getHours())}:${pad2(inD.getMinutes())}` : "";
+        $("fixOutTime").value = outD ? `${pad2(outD.getHours())}:${pad2(outD.getMinutes())}` : "";
+
+        $("fixOk").textContent = "✅ הרשומה נטענה.";
+      }catch(e){
+        $("fixMsg").textContent = e.message || String(e);
+      }
+    }
+
+    async function saveFixRecord(){
+      clearFixMessages();
+
+      const uid = $("fixUserSelect").value;
+      const dateYMD = $("fixDate").value;
+      const inTimeRaw = $("fixInTime").value;
+      const outTimeRaw = $("fixOutTime").value;
+
+      if(!uid) return $("fixMsg").textContent = "בחר עובד לתיקון.";
+      if(!dateYMD) return $("fixMsg").textContent = "בחר תאריך.";
+
+      const inNorm = normalizeHHMM(inTimeRaw);
+      const outNorm = normalizeHHMM(outTimeRaw);
+
+      if(inTimeRaw && !inNorm) return $("fixMsg").textContent = "שעת כניסה לא תקינה. דוגמה: 08:00";
+      if(outTimeRaw && !outNorm) return $("fixMsg").textContent = "שעת יציאה לא תקינה. דוגמה: 16:00";
+
+      // אם מילאו גם וגם — נוודא הגיון
+      if(inNorm && outNorm){
+        const inD = combineDateAndTime(dateYMD, inNorm);
+        const outD = combineDateAndTime(dateYMD, outNorm);
+        if(inD && outD && outD < inD){
+          return $("fixMsg").textContent = "שעת יציאה לא יכולה להיות לפני שעת כניסה.";
+        }
+      }
+
+      try{
+        const aref = attendanceRef(uid, dateYMD);
+        const snap = await getDoc(aref);
+
+        const foundUser = usersCache.find(u=>u.id===uid);
+        const employeeName = foundUser?.data?.fullName || foundUser?.data?.email || uid;
+
+        // נשמור רק מה שניתן (שדות ריקים -> לא משנים)
+        const patch = {
+          uid,
+          employeeName,
+          dateYMD,
+          updatedAt: serverTimestamp()
+        };
+
+        if(inNorm){
+          const inD = combineDateAndTime(dateYMD, inNorm);
+          patch.inAt = Timestamp.fromDate(inD);
+        }
+        if(outNorm){
+          const outD = combineDateAndTime(dateYMD, outNorm);
+          patch.outAt = Timestamp.fromDate(outD);
+        }
+
+        if(!snap.exists()){
+          // יצירת רשומה חדשה — merge כדי להיות בטוחים
+          await setDoc(aref, {
+            ...patch,
+            inAt: patch.inAt ?? null,
+            outAt: patch.outAt ?? null
+          }, { merge:true });
+          $("fixOk").textContent = "✅ נוצרה/נשמרה רשומה חדשה לתאריך הזה.";
+          return;
+        }
+
+        // אם קיימת — merge/עדכון נקודתי (בלי למחוק שדות אחרים)
+        await setDoc(aref, patch, { merge:true });
+        $("fixOk").textContent = "✅ התיקון נשמר (בלי למחוק נתונים אחרים).";
+      }catch(e){
+        $("fixMsg").textContent = e.message || String(e);
+      }
+    }
+
+    async function clearOutTime(){
+      clearFixMessages();
+
+      const uid = $("fixUserSelect").value;
+      const dateYMD = $("fixDate").value;
+
+      if(!uid) return $("fixMsg").textContent = "בחר עובד לתיקון.";
+      if(!dateYMD) return $("fixMsg").textContent = "בחר תאריך.";
+
+      try{
+        const aref = attendanceRef(uid, dateYMD);
+        const snap = await getDoc(aref);
+        if(!snap.exists()){
+          $("fixMsg").textContent = "אין רשומה לתאריך הזה, אין מה לנקות.";
+          return;
+        }
+        await updateDoc(aref, { outAt: null, updatedAt: serverTimestamp() });
+        $("fixOutTime").value = "";
+        $("fixOk").textContent = "✅ יציאה נוקתה.";
+      }catch(e){
+        $("fixMsg").textContent = e.message || String(e);
+      }
+    }
+
+    // ===== Login / Buttons =====
     $("btnEmailLogin").onclick = async () => {
       $("loginMsg").textContent = "";
       const email = cleanEmail($("email").value);
@@ -873,6 +1097,12 @@
     $("btnExportCsv").onclick = exportCSV;
     $("btnExportPdf").onclick = exportPDF;
 
+    // ✅ חדש: כפתורי תיקון
+    $("btnLoadFix").onclick = loadFixRecord;
+    $("btnSaveFix").onclick = saveFixRecord;
+    $("btnClearOut").onclick = clearOutTime;
+
+    // ===== Auth State =====
     onAuthStateChanged(auth, async (user) => {
       $("loginMsg").textContent = "";
       $("empMsg").textContent = "";
@@ -881,6 +1111,8 @@
       $("adminOk").textContent = "";
       $("usersMsg").textContent = "";
       $("usersOk").textContent = "";
+      $("fixMsg").textContent = "";
+      $("fixOk").textContent = "";
 
       if(!user){
         setMode("login");
@@ -912,6 +1144,7 @@
       }
     });
 
+    // שמירה אוטומטית שמנהל תמיד admin לפי מייל
     onAuthStateChanged(auth, async (user) => {
       if(!user) return;
       if(isAdminEmail(user.email)){
