@@ -151,9 +151,11 @@
 
       <div class="row" style="margin-top:12px">
         <button class="btn primary" id="btnEmailLogin">התחבר/י</button>
+        <button class="btn ghost" id="btnForgotPassword" type="button">שכחתי סיסמה</button>
       </div>
 
       <p id="loginMsg" class="dangerText"></p>
+      <p id="loginOk" class="okText"></p>
     </div>
 
     <div id="employeeCard" class="card hidden">
@@ -197,7 +199,44 @@
       </div>
 
       <div id="usersTab" class="note">
-        <h3>ניהול עובדים</h3>
+        <h3>הקמת עובד חדש</h3>
+
+        <div class="grid2">
+          <div>
+            <label>שם מלא</label>
+            <input id="newEmployeeName" placeholder="ישראל ישראלי" />
+          </div>
+          <div>
+            <label>מייל</label>
+            <input id="newEmployeeEmail" dir="ltr" type="email" placeholder="employee@company.com" />
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-top:6px">
+          <div>
+            <label>טלפון</label>
+            <input id="newEmployeePhone" dir="ltr" placeholder="0501234567" />
+          </div>
+          <div>
+            <label>תפקיד</label>
+            <select id="newEmployeeRole">
+              <option value="employee">עובד</option>
+              <option value="admin">מנהל</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" id="btnCreateEmployee">הקם עובד ושלח מייל להגדרת סיסמה</button>
+        </div>
+        <div class="muted" style="margin-top:8px">
+          העובד ייווצר ב-Firebase Authentication ובמערכת, ויקבל מייל לבחירת סיסמה חדשה.
+        </div>
+        <p id="newEmployeeMsg" class="dangerText"></p>
+        <p id="newEmployeeOk" class="okText"></p>
+
+        <div class="divider"></div>
+        <h3>ניהול עובדים קיימים</h3>
 
         <div class="grid2">
           <div>
@@ -387,7 +426,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import {
       getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-      setPersistence, browserLocalPersistence
+      sendPasswordResetEmail, setPersistence, browserLocalPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
     import {
       getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
@@ -410,6 +449,7 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    auth.languageCode = "he";
     await setPersistence(auth, browserLocalPersistence);
     const db = getFirestore(app);
 
@@ -706,6 +746,91 @@
       }
     }
 
+    function firebaseAuthErrorMessage(code){
+      const map = {
+        EMAIL_EXISTS: "כבר קיים משתמש עם כתובת המייל הזו.",
+        OPERATION_NOT_ALLOWED: "התחברות במייל וסיסמה אינה מופעלת ב-Firebase.",
+        TOO_MANY_ATTEMPTS_TRY_LATER: "בוצעו יותר מדי ניסיונות. נסי שוב מאוחר יותר.",
+        INVALID_EMAIL: "כתובת המייל אינה תקינה.",
+        WEAK_PASSWORD: "הסיסמה הזמנית שנוצרה לא התקבלה. נסי שוב."
+      };
+      return map[code] || code || "שגיאה לא ידועה ביצירת המשתמש.";
+    }
+
+    function makeTemporaryPassword(){
+      const bytes = new Uint32Array(4);
+      crypto.getRandomValues(bytes);
+      return `Tmp!${Array.from(bytes).map(n=>n.toString(36)).join("").slice(0,18)}9a`;
+    }
+
+    async function createEmployee(){
+      $("newEmployeeMsg").textContent = "";
+      $("newEmployeeOk").textContent = "";
+
+      const current = auth.currentUser;
+      if(!current || !isAdminEmail(current.email)){
+        $("newEmployeeMsg").textContent = "רק מנהל מורשה יכול להקים עובד חדש.";
+        return;
+      }
+
+      const fullName = ($("newEmployeeName").value || "").trim();
+      const email = cleanEmail($("newEmployeeEmail").value).toLowerCase();
+      const phone = ($("newEmployeePhone").value || "").trim();
+      const role = $("newEmployeeRole").value || "employee";
+
+      if(!fullName) return $("newEmployeeMsg").textContent = "נא למלא שם מלא.";
+      if(!email || !email.includes("@")) return $("newEmployeeMsg").textContent = "נא למלא כתובת מייל תקינה.";
+
+      $("btnCreateEmployee").disabled = true;
+      $("btnCreateEmployee").textContent = "מקים עובד...";
+
+      try{
+        const temporaryPassword = makeTemporaryPassword();
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: temporaryPassword, returnSecureToken: true })
+        });
+        const payload = await response.json();
+        if(!response.ok){
+          const code = payload?.error?.message || "";
+          throw new Error(firebaseAuthErrorMessage(code));
+        }
+
+        const uid = payload.localId;
+        await setDoc(doc(db, "users", uid), {
+          fullName,
+          email,
+          phone,
+          role,
+          status: "active",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge:true });
+
+        let mailNote = "";
+        try{
+          await sendPasswordResetEmail(auth, email);
+          mailNote = " מייל להגדרת סיסמה נשלח לעובד.";
+        }catch(mailErr){
+          console.error("Password reset email failed", mailErr);
+          mailNote = " העובד הוקם, אך מייל הגדרת הסיסמה לא נשלח. ניתן לשלוח לו שוב דרך 'שכחתי סיסמה'.";
+        }
+
+        $("newEmployeeOk").textContent = `✅ העובד ${fullName} הוקם בהצלחה.${mailNote}`;
+        $("newEmployeeName").value = "";
+        $("newEmployeeEmail").value = "";
+        $("newEmployeePhone").value = "";
+        $("newEmployeeRole").value = "employee";
+        await loadAllUsers();
+      }catch(e){
+        $("newEmployeeMsg").textContent = e.message || String(e);
+      }finally{
+        $("btnCreateEmployee").disabled = false;
+        $("btnCreateEmployee").textContent = "הקם עובד ושלח מייל להגדרת סיסמה";
+      }
+    }
+
     async function toggleDisable(){
       $("usersMsg").textContent = "";
       $("usersOk").textContent = "";
@@ -987,8 +1112,34 @@
     }
 
     // ===== Login / Buttons =====
+    $("btnForgotPassword").onclick = async () => {
+      $("loginMsg").textContent = "";
+      $("loginOk").textContent = "";
+      const email = cleanEmail($("email").value).toLowerCase();
+
+      if(!email || !email.includes("@")){
+        $("loginMsg").textContent = "נא להזין קודם כתובת מייל תקינה.";
+        return;
+      }
+
+      try{
+        await sendPasswordResetEmail(auth, email);
+        $("loginOk").textContent = "✅ נשלח מייל לאיפוס הסיסמה. בדקי גם בתיקיית ספאם או קידומי מכירות.";
+      }catch(e){
+        console.error("Password reset error", e);
+        const friendly = {
+          "auth/invalid-email": "כתובת המייל אינה תקינה.",
+          "auth/too-many-requests": "בוצעו יותר מדי ניסיונות. נסי שוב מאוחר יותר.",
+          "auth/network-request-failed": "לא ניתן להתחבר כרגע. בדקי את החיבור לאינטרנט.",
+          "auth/operation-not-allowed": "איפוס סיסמה במייל אינו מופעל ב-Firebase."
+        };
+        $("loginMsg").textContent = friendly[e?.code] || "לא ניתן היה לשלוח את המייל. בדקי את הגדרות תבנית איפוס הסיסמה ב-Firebase.";
+      }
+    };
+
     $("btnEmailLogin").onclick = async () => {
       $("loginMsg").textContent = "";
+      $("loginOk").textContent = "";
       const email = cleanEmail($("email").value);
       const password = $("password").value;
 
@@ -1063,6 +1214,7 @@
     };
 
     $("userSelectManage").onchange = loadSelectedUserToForm;
+    $("btnCreateEmployee").onclick = createEmployee;
     $("btnSaveUser").onclick = saveUser;
     $("btnToggleDisable").onclick = toggleDisable;
 
@@ -1105,6 +1257,7 @@
     // ===== Auth State =====
     onAuthStateChanged(auth, async (user) => {
       $("loginMsg").textContent = "";
+      $("loginOk").textContent = "";
       $("empMsg").textContent = "";
       $("empOk").textContent = "";
       $("adminMsg").textContent = "";
