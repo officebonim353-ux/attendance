@@ -188,7 +188,10 @@
       <p id="empOk" class="okText"></p>
 
       <div class="divider"></div>
-      <h3>פירוט שעות החודש</h3>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">פירוט שעות החודש</h3>
+        <button class="btn ghost" id="btnPrintEmployeeReport" type="button">הדפסת הדוח</button>
+      </div>
       <div style="overflow:auto">
         <table id="employeeAttendanceTable">
           <thead>
@@ -678,6 +681,59 @@
       renderEmployeeAttendance(rows);
     }
 
+    function printEmployeeReport(){
+      const name = $("kpiName").textContent || "";
+      const total = $("kpiHours").textContent || "0:00";
+      const now = new Date();
+      const monthLabel = now.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+      const rows = Array.from($("employeeAttendanceTable").querySelectorAll("tbody tr")).map(tr =>
+        Array.from(tr.children).map(td => td.textContent || "")
+      );
+
+      const bodyRows = rows.map(cols => `
+        <tr>
+          <td>${escapeHtml(cols[0] || "")}</td>
+          <td>${escapeHtml(cols[1] || "")}</td>
+          <td>${escapeHtml(cols[2] || "")}</td>
+          <td>${escapeHtml(cols[3] || "")}</td>
+        </tr>`).join("");
+
+      const w = window.open("", "_blank");
+      if(!w){
+        $("empMsg").textContent = "הדפסת הדוח נחסמה על ידי הדפדפן. יש לאפשר חלונות קופצים לאתר.";
+        return;
+      }
+
+      w.document.write(`<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>דוח נוכחות - ${escapeHtml(name)}</title>
+  <style>
+    body{font-family:Arial,sans-serif;direction:rtl;margin:28px;color:#111}
+    h1{font-size:24px;margin:0 0 8px}
+    .meta{margin-bottom:18px;font-size:15px}
+    .summary{margin:10px 0 18px;font-weight:700}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #bbb;padding:8px;text-align:center}
+    th{background:#f2f2f2}
+    @page{size:A4;margin:15mm}
+  </style>
+</head>
+<body>
+  <h1>דוח נוכחות</h1>
+  <div class="meta"><b>עובד:</b> ${escapeHtml(name)} &nbsp; | &nbsp; <b>חודש:</b> ${escapeHtml(monthLabel)}</div>
+  <div class="summary">סה״כ שעות בחודש: ${escapeHtml(total)}</div>
+  <table>
+    <thead><tr><th>תאריך</th><th>כניסה</th><th>יציאה</th><th>סה״כ</th></tr></thead>
+    <tbody>${bodyRows || '<tr><td colspan="4">אין רשומות להצגה</td></tr>'}</tbody>
+  </table>
+  <script>window.onload=()=>{window.print();}</` + `script>
+</body>
+</html>`);
+      w.document.close();
+    }
+
     // ===== ADMIN: Users =====
     let usersCache = [];
 
@@ -1034,9 +1090,24 @@
           </tr>
         `).join("");
 
+        // ב-PDF ערבוב עברית עם מספרים/סימני פיסוק באותה שורה עלול ליצור רווחים וסדר תווים משובש.
+        // לכן מפרידים את החלקים לכיווניות עצמאית (bidi isolation).
+        const pdfDate = (v) => {
+          if(!v) return "";
+          const [y,m,d] = v.split("-");
+          return `${d}/${m}/${y}`;
+        };
+
         wrapper.innerHTML = `
-          <h2 style="margin:0 0 8px;font-size:20px">דוח נוכחות - מכללת הבונים בע״מ</h2>
-          <div style="margin-bottom:16px;font-size:13px">טווח: ${escapeHtml(fromVal)} עד ${escapeHtml(toVal)}</div>
+          <h2 style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right;unicode-bidi:isolate">
+            <span>דוח נוכחות</span><span style="margin:0 8px">–</span><span>מכללת הבונים בע״מ</span>
+          </h2>
+          <div style="margin-bottom:16px;font-size:13px;direction:rtl;text-align:right">
+            <span>טווח:</span>
+            <span dir="ltr" style="display:inline-block;margin:0 5px;unicode-bidi:isolate">${escapeHtml(pdfDate(fromVal))}</span>
+            <span>עד</span>
+            <span dir="ltr" style="display:inline-block;margin-right:5px;unicode-bidi:isolate">${escapeHtml(pdfDate(toVal))}</span>
+          </div>
           <table style="width:100%;border-collapse:collapse;direction:rtl;text-align:right">
             <thead>
               <tr>
@@ -1049,7 +1120,10 @@
             </thead>
             <tbody>${rowsHtml}</tbody>
           </table>
-          <div style="margin-top:14px;font-weight:bold">סה״כ שעות בדוח: ${escapeHtml($("kpiTotal").textContent)}</div>
+          <div style="margin-top:14px;font-weight:bold;direction:rtl;text-align:right">
+            <span>סה״כ שעות בדוח:</span>
+            <span dir="ltr" style="display:inline-block;margin-right:5px;unicode-bidi:isolate">${escapeHtml($("kpiTotal").textContent)}</span>
+          </div>
         `;
 
         wrapper.querySelectorAll("td").forEach(td => td.style.cssText = "border:1px solid #bbb;padding:8px;font-size:12px;");
@@ -1356,6 +1430,7 @@
 
     $("btnExportCsv").onclick = exportCSV;
     $("btnExportPdf").onclick = exportPDF;
+    $("btnPrintEmployeeReport").onclick = printEmployeeReport;
 
     // ✅ חדש: כפתורי תיקון
     $("btnLoadFix").onclick = loadFixRecord;
