@@ -186,6 +186,23 @@
 
       <p id="empMsg" class="dangerText"></p>
       <p id="empOk" class="okText"></p>
+
+      <div class="divider"></div>
+      <h3>פירוט שעות החודש</h3>
+      <div style="overflow:auto">
+        <table id="employeeAttendanceTable">
+          <thead>
+            <tr>
+              <th>תאריך</th>
+              <th>כניסה</th>
+              <th>יציאה</th>
+              <th>סה״כ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="employeeAttendanceEmpty" class="muted hidden" style="margin-top:10px">אין עדיין רשומות נוכחות בחודש הנוכחי.</div>
     </div>
 
     <div id="adminCard" class="card hidden">
@@ -595,7 +612,7 @@
       }
     }
 
-    async function calcMonthHours(uid, year, monthIndex){
+    async function getMonthAttendance(uid, year, monthIndex){
       const start = new Date(year, monthIndex, 1, 0,0,0,0);
       const end = new Date(year, monthIndex+1, 1, 0,0,0,0);
       const fromY = ymd(start);
@@ -609,14 +626,44 @@
       );
 
       const snap = await getDocs(qy);
+      const rows = [];
       let totalMs = 0;
+
       snap.forEach(docu=>{
         const d = docu.data();
         const inD = tsToDate(d.inAt);
         const outD = tsToDate(d.outAt);
-        if(inD && outD) totalMs += Math.max(0, outD - inD);
+        const ms = (inD && outD) ? Math.max(0, outD - inD) : 0;
+        totalMs += ms;
+
+        rows.push({
+          date: d.dateYMD || docu.id,
+          inAt: inD ? fmtTime(inD) : "",
+          outAt: outD ? fmtTime(outD) : "",
+          total: ms ? msToHHMM(ms) : ""
+        });
       });
-      return totalMs;
+
+      return { rows, totalMs };
+    }
+
+    function renderEmployeeAttendance(rows){
+      const tb = $("employeeAttendanceTable").querySelector("tbody");
+      tb.innerHTML = "";
+
+      for(const r of rows){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(r.date)}</td>
+          <td>${escapeHtml(r.inAt)}</td>
+          <td>${escapeHtml(r.outAt)}</td>
+          <td>${escapeHtml(r.total)}</td>
+        `;
+        tb.appendChild(tr);
+      }
+
+      if(rows.length) hide($("employeeAttendanceEmpty"));
+      else show($("employeeAttendanceEmpty"));
     }
 
     async function refreshEmployeeUI(user, profile){
@@ -626,8 +673,9 @@
       $("pStatus").textContent = (profile.status === "disabled") ? "מושבת" : "פעיל";
 
       const now = new Date();
-      const ms = await calcMonthHours(user.uid, now.getFullYear(), now.getMonth());
-      $("kpiHours").textContent = msToHHMM(ms);
+      const { rows, totalMs } = await getMonthAttendance(user.uid, now.getFullYear(), now.getMonth());
+      $("kpiHours").textContent = msToHHMM(totalMs);
+      renderEmployeeAttendance(rows);
     }
 
     // ===== ADMIN: Users =====
@@ -934,33 +982,93 @@
     }
 
     function exportCSV(){
-      const header = ["Employee","Date","In","Out","Total"];
+      const header = ["עובד","תאריך","כניסה","יציאה","סה״כ"];
       const lines = [header.join(",")];
       for(const r of lastReportRows){
         const line = [r.employeeName, r.date, r.inAt, r.outAt, r.total]
           .map(v => `"${String(v||"").replaceAll('"','""')}"`).join(",");
         lines.push(line);
       }
-      downloadText(`attendance_${Date.now()}.csv`, lines.join("\n"), "text/csv;charset=utf-8");
+
+      // BOM בתחילת הקובץ גורם ל-Excel לזהות UTF-8 ולהציג עברית תקינה.
+      downloadText(`attendance_${Date.now()}.csv`, "\uFEFF" + lines.join("\r\n"), "text/csv;charset=utf-8");
+    }
+
+    function loadHtml2Pdf(){
+      return new Promise((resolve, reject) => {
+        if(window.html2pdf) return resolve(window.html2pdf);
+
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
+        script.onload = () => resolve(window.html2pdf);
+        script.onerror = () => reject(new Error("לא ניתן לטעון את רכיב ה-PDF."));
+        document.head.appendChild(script);
+      });
     }
 
     async function exportPDF(){
-      const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js");
-      await import("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
+      $("adminMsg").textContent = "";
+      $("adminOk").textContent = "";
 
-      const pdf = new jsPDF({ orientation:"portrait", unit:"pt", format:"a4" });
-      pdf.setFontSize(14);
-      pdf.text("דוח נוכחות - מכללת הבונים בע\"מ", 40, 40);
+      if(!lastReportRows.length){
+        $("adminMsg").textContent = "יש להפיק דוח לפני ייצוא ל-PDF.";
+        return;
+      }
 
-      const body = lastReportRows.map(r => [r.employeeName, r.date, r.inAt, r.outAt, r.total]);
-      pdf.autoTable({
-        startY: 60,
-        head: [["עובד","תאריך","כניסה","יציאה","סה״כ"]],
-        body,
-        styles: { fontSize: 9 },
-      });
+      try{
+        const html2pdf = await loadHtml2Pdf();
+        const fromVal = $("fromDate").value || "";
+        const toVal = $("toDate").value || "";
 
-      pdf.save(`attendance_${Date.now()}.pdf`);
+        const wrapper = document.createElement("div");
+        wrapper.dir = "rtl";
+        wrapper.style.cssText = "font-family:Arial,sans-serif;padding:24px;color:#111;background:#fff;direction:rtl;text-align:right;";
+
+        const rowsHtml = lastReportRows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.employeeName)}</td>
+            <td>${escapeHtml(r.date)}</td>
+            <td>${escapeHtml(r.inAt)}</td>
+            <td>${escapeHtml(r.outAt)}</td>
+            <td>${escapeHtml(r.total)}</td>
+          </tr>
+        `).join("");
+
+        wrapper.innerHTML = `
+          <h2 style="margin:0 0 8px;font-size:20px">דוח נוכחות - מכללת הבונים בע״מ</h2>
+          <div style="margin-bottom:16px;font-size:13px">טווח: ${escapeHtml(fromVal)} עד ${escapeHtml(toVal)}</div>
+          <table style="width:100%;border-collapse:collapse;direction:rtl;text-align:right">
+            <thead>
+              <tr>
+                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">עובד</th>
+                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">תאריך</th>
+                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">כניסה</th>
+                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">יציאה</th>
+                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">סה״כ</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div style="margin-top:14px;font-weight:bold">סה״כ שעות בדוח: ${escapeHtml($("kpiTotal").textContent)}</div>
+        `;
+
+        wrapper.querySelectorAll("td").forEach(td => td.style.cssText = "border:1px solid #bbb;padding:8px;font-size:12px;");
+        document.body.appendChild(wrapper);
+
+        await html2pdf().set({
+          margin: 8,
+          filename: `attendance_${Date.now()}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] }
+        }).from(wrapper).save();
+
+        wrapper.remove();
+        $("adminOk").textContent = "✅ קובץ PDF הורד";
+      }catch(e){
+        $("adminMsg").textContent = e.message || String(e);
+      }
     }
 
     function setDefaultDates(){
