@@ -139,6 +139,9 @@
     .shiftEditor{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
     .shiftEditorHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .shiftEditorHead .btn{width:auto;padding:8px 12px;font-size:13px}
+    .reportEmployeePicker{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+    .reportEmployeePicker label{display:flex;align-items:center;gap:6px;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-size:13px}
+    .reportEmployeePicker input{width:auto;margin:0}
     @media (max-width:720px){.scheduleActions .btn{width:100%}.scheduleTable th,.scheduleTable td{min-width:105px}}
   </style>
 </head>
@@ -456,6 +459,14 @@
         <div class="scheduleActions">
           <button class="btn primary" id="btnPrintGeneralSchedule" type="button">הדפסה / PDF — לוח כללי</button>
           <button class="btn ghost" id="btnPrintSchedule" type="button">הדפסה / PDF — עובד נבחר</button>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-weight:800;font-size:13px">מי יופיע בדוח הכללי?</div>
+          <div id="reportEmployeePicker" class="reportEmployeePicker"></div>
+          <div class="row" style="margin-bottom:10px">
+            <button class="btn ghost" id="btnSelectAllReportEmployees" type="button">בחרי הכל</button>
+            <button class="btn ghost" id="btnClearReportEmployees" type="button">נקי בחירה</button>
+          </div>
         </div>
         <div style="overflow:auto">
           <table id="scheduleTable" class="scheduleTable"><thead></thead><tbody></tbody></table>
@@ -1263,7 +1274,7 @@
     let shiftsCache = new Map();
     function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; }
     function shiftDocId(uid,date){ return `${uid}_${date}`; }
-    function weekDates(){ return Array.from({length:7},(_,i)=>{const d=new Date(scheduleWeekStart);d.setDate(d.getDate()+i);return d;}); }
+    function weekDates(){ return Array.from({length:6},(_,i)=>{const d=new Date(scheduleWeekStart);d.setDate(d.getDate()+i);return d;}); }
     function shortDate(d){ return d.toLocaleDateString("he-IL",{weekday:"short",day:"2-digit",month:"2-digit"}); }
     function renderScheduleTable(dates){
       const thead=$("scheduleTable").querySelector("thead"), tbody=$("scheduleTable").querySelector("tbody");
@@ -1271,7 +1282,7 @@
       tbody.innerHTML="";
       const activeUsers = usersCache.filter(x=>x.data.status!=="disabled");
       if(!activeUsers.length){
-        tbody.innerHTML='<tr><td colspan="8" class="muted" style="text-align:center;padding:18px">אין עובדים פעילים להצגה.</td></tr>';
+        tbody.innerHTML='<tr><td colspan="7" class="muted" style="text-align:center;padding:18px">אין עובדים פעילים להצגה.</td></tr>';
         return;
       }
       for(const u of activeUsers){
@@ -1290,6 +1301,25 @@
       }
     }
 
+    function renderReportEmployeePicker(){
+      const box=$("reportEmployeePicker");
+      if(!box) return;
+      const activeUsers=usersCache.filter(x=>x.data.status!=="disabled");
+      const previous=new Set(Array.from(box.querySelectorAll('input[type="checkbox"]:checked')).map(x=>x.value));
+      const firstRender=box.dataset.ready!=="1";
+      box.innerHTML="";
+      for(const u of activeUsers){
+        const label=document.createElement("label");
+        const checked=firstRender || previous.has(u.id);
+        label.innerHTML=`<input type="checkbox" value="${escapeHtml(u.id)}" ${checked?"checked":""}> <span>${escapeHtml(u.data.fullName||u.data.email||u.id)}</span>`;
+        box.appendChild(label);
+      }
+      box.dataset.ready="1";
+    }
+    function selectedReportEmployeeIds(){
+      return new Set(Array.from($("reportEmployeePicker")?.querySelectorAll('input[type="checkbox"]:checked')||[]).map(x=>x.value));
+    }
+
     async function loadScheduleWeek(){
       $("scheduleMsg").textContent=""; $("scheduleOk").textContent="";
       const dates=weekDates(), from=ymd(dates[0]), to=ymd(dates[6]);
@@ -1298,6 +1328,7 @@
       // מציגים תמיד את הטבלה ואת העובדים שכבר קיימים במערכת,
       // גם אם Firestore עדיין חוסם קריאה מ-shifts לפני עדכון ה-Rules.
       shiftsCache=new Map();
+      renderReportEmployeePicker();
       renderScheduleTable(dates);
 
       try{
@@ -1328,13 +1359,20 @@
     function printScheduleForEmployee(){ const uid=$("shiftUser").value,u=usersCache.find(x=>x.id===uid); if(!u)return; const rows=weekDates().map(d=>{const sh=shiftsCache.get(shiftDocId(uid,ymd(d)));return sh?`<tr><td>${escapeHtml(d.toLocaleDateString("he-IL",{weekday:"long"}))}</td><td>${escapeHtml(d.toLocaleDateString("he-IL"))}</td><td>${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}</td><td>${escapeHtml(sh.note||"")}</td></tr>`:""}).join(""); const w=window.open("","_blank"); if(!w)return; w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>משמרות - ${escapeHtml(u.data.fullName||"")}</title><style>body{font-family:Arial;margin:28px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:9px;text-align:right}th{background:#eee}</style></head><body><h2>לוח משמרות - ${escapeHtml(u.data.fullName||"")}</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>יום</th><th>תאריך</th><th>שעות</th><th>הערה</th></tr></thead><tbody>${rows||'<tr><td colspan="4">אין משמרות בשבוע זה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close(); }
     function printGeneralSchedule(){
       const dates=weekDates();
+      const selected=selectedReportEmployeeIds();
+      if(!selected.size){
+        $("scheduleMsg").textContent="בחרי לפחות עובד אחד שיופיע בדוח הכללי.";
+        return;
+      }
+      $("scheduleMsg").textContent="";
       const head=dates.map(d=>`<th>${escapeHtml(shortDate(d))}</th>`).join("");
-      const body=usersCache.filter(x=>x.data.status!=="disabled").map(u=>{
+      const reportUsers=usersCache.filter(x=>x.data.status!=="disabled" && selected.has(x.id));
+      const body=reportUsers.map(u=>{
         const cells=dates.map(d=>{const sh=shiftsCache.get(shiftDocId(u.id,ymd(d))); return `<td>${sh?`${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}${sh.note?`<br><small>${escapeHtml(sh.note)}</small>`:""}`:"—"}</td>`;}).join("");
         return `<tr><th>${escapeHtml(u.data.fullName||u.data.email||"")}</th>${cells}</tr>`;
       }).join("");
       const w=window.open("","_blank"); if(!w)return;
-      w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>לוח משמרות כללי</title><style>body{font-family:Arial,sans-serif;direction:rtl;margin:22px;color:#111}h2{margin:0 0 6px}p{margin:0 0 16px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #aaa;padding:7px;text-align:center;font-size:11px;vertical-align:top}th{background:#f2f2f2;font-weight:700}small{font-size:9px;color:#444}@page{size:A4 landscape;margin:10mm}@media print{body{margin:0}}</style></head><body><h2>לוח משמרות כללי – מכללת הבונים בע״מ</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>עובד</th>${head}</tr></thead><tbody>${body||'<tr><td colspan="8">אין עובדים להצגה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close();
+      w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>לוח משמרות כללי</title><style>body{font-family:Arial,sans-serif;direction:rtl;margin:22px;color:#111}h2{margin:0 0 6px}p{margin:0 0 16px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #aaa;padding:7px;text-align:center;font-size:11px;vertical-align:top}th{background:#f2f2f2;font-weight:700}small{font-size:9px;color:#444}@page{size:A4 landscape;margin:10mm}@media print{body{margin:0}}</style></head><body><h2>לוח משמרות כללי – מכללת הבונים בע״מ</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>עובד</th>${head}</tr></thead><tbody>${body||'<tr><td colspan="7">אין עובדים להצגה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close();
     }
 
     // ===== ADMIN: Fix Attendance =====
@@ -1568,6 +1606,8 @@
     $("btnCloseShiftEditor").onclick=()=>hide($("shiftEditor"));
     $("btnPrintSchedule").onclick=printScheduleForEmployee;
     $("btnPrintGeneralSchedule").onclick=printGeneralSchedule;
+    $("btnSelectAllReportEmployees").onclick=()=>{$("reportEmployeePicker").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true);};
+    $("btnClearReportEmployees").onclick=()=>{$("reportEmployeePicker").querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=false);};
 
     $("btnReloadUsers").onclick = async () => {
       $("usersMsg").textContent = "";
