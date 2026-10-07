@@ -1265,18 +1265,49 @@
     function shiftDocId(uid,date){ return `${uid}_${date}`; }
     function weekDates(){ return Array.from({length:7},(_,i)=>{const d=new Date(scheduleWeekStart);d.setDate(d.getDate()+i);return d;}); }
     function shortDate(d){ return d.toLocaleDateString("he-IL",{weekday:"short",day:"2-digit",month:"2-digit"}); }
+    function renderScheduleTable(dates){
+      const thead=$("scheduleTable").querySelector("thead"), tbody=$("scheduleTable").querySelector("tbody");
+      thead.innerHTML=`<tr><th>עובד</th>${dates.map(d=>`<th>${escapeHtml(shortDate(d))}</th>`).join("")}</tr>`;
+      tbody.innerHTML="";
+      const activeUsers = usersCache.filter(x=>x.data.status!=="disabled");
+      if(!activeUsers.length){
+        tbody.innerHTML='<tr><td colspan="8" class="muted" style="text-align:center;padding:18px">אין עובדים פעילים להצגה.</td></tr>';
+        return;
+      }
+      for(const u of activeUsers){
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td><b>${escapeHtml(u.data.fullName||u.data.email||"")}</b></td>`;
+        for(const d of dates){
+          const date=ymd(d), sh=shiftsCache.get(shiftDocId(u.id,date));
+          const td=document.createElement("td");
+          td.innerHTML=sh
+            ? `<div class="shiftCell shiftFilled">${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}${sh.note?`<div class="muted">${escapeHtml(sh.note)}</div>`:""}</div>`
+            : `<div class="shiftCell muted">＋</div>`;
+          td.onclick=()=>selectShift(u.id,date);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+
     async function loadScheduleWeek(){
       $("scheduleMsg").textContent=""; $("scheduleOk").textContent="";
       const dates=weekDates(), from=ymd(dates[0]), to=ymd(dates[6]);
       $("weekLabel").textContent=`${dates[0].toLocaleDateString("he-IL")} – ${dates[6].toLocaleDateString("he-IL")}`;
-      const snap=await getDocs(query(collection(db,"shifts"),where("dateYMD",">=",from),where("dateYMD","<=",to),orderBy("dateYMD","asc")));
-      shiftsCache=new Map(); snap.forEach(x=>shiftsCache.set(shiftDocId(x.data().uid,x.data().dateYMD),{id:x.id,...x.data()}));
-      const thead=$("scheduleTable").querySelector("thead"), tbody=$("scheduleTable").querySelector("tbody");
-      thead.innerHTML=`<tr><th>עובד</th>${dates.map(d=>`<th>${escapeHtml(shortDate(d))}</th>`).join("")}</tr>`; tbody.innerHTML="";
-      for(const u of usersCache.filter(x=>x.data.status!=="disabled")){
-        const tr=document.createElement("tr"); tr.innerHTML=`<td><b>${escapeHtml(u.data.fullName||u.data.email||"")}</b></td>`;
-        for(const d of dates){ const date=ymd(d), sh=shiftsCache.get(shiftDocId(u.id,date)); const td=document.createElement("td"); td.innerHTML=sh?`<div class="shiftCell shiftFilled">${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}${sh.note?`<div class="muted">${escapeHtml(sh.note)}</div>`:""}</div>`:`<div class="shiftCell muted">＋</div>`; td.onclick=()=>selectShift(u.id,date); tr.appendChild(td); }
-        tbody.appendChild(tr);
+
+      // מציגים תמיד את הטבלה ואת העובדים שכבר קיימים במערכת,
+      // גם אם Firestore עדיין חוסם קריאה מ-shifts לפני עדכון ה-Rules.
+      shiftsCache=new Map();
+      renderScheduleTable(dates);
+
+      try{
+        const snap=await getDocs(query(collection(db,"shifts"),where("dateYMD",">=",from),where("dateYMD","<=",to),orderBy("dateYMD","asc")));
+        shiftsCache=new Map();
+        snap.forEach(x=>shiftsCache.set(shiftDocId(x.data().uid,x.data().dateYMD),{id:x.id,...x.data()}));
+        renderScheduleTable(dates);
+      }catch(e){
+        console.error("Schedule load failed", e);
+        $("scheduleMsg").textContent="לוח המשמרות מוצג, אך כרגע אין הרשאה לקרוא או לשמור משמרות. לאחר עדכון ה-Rules הנתונים ייטענו ויישמרו.";
       }
     }
     function selectShift(uid,date){
