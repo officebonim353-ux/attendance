@@ -127,6 +127,13 @@
     @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
     .tabs{display:flex;gap:10px;flex-wrap:wrap}
     .tabs .btn{max-width:220px}
+    .scheduleToolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+    .scheduleToolbar > *{flex:1 1 160px}
+    .scheduleTable th,.scheduleTable td{text-align:center;min-width:125px}
+    .scheduleTable th:first-child,.scheduleTable td:first-child{position:sticky;right:0;background:#fff;z-index:1;min-width:150px;text-align:right}
+    .shiftCell{cursor:pointer;border-radius:10px;padding:7px;min-height:38px}
+    .shiftCell:hover{background:#f3f4f6}
+    .shiftFilled{font-weight:800;background:#f9fafb;border:1px solid var(--line)}
   </style>
 </head>
 
@@ -215,6 +222,7 @@
         <div class="tabs">
           <button class="btn ghost" id="tabUsers">עובדים</button>
           <button class="btn ghost" id="tabReports">דוחות</button>
+          <button class="btn ghost" id="tabSchedule">לוח משמרות</button>
         </div>
       </div>
 
@@ -430,6 +438,37 @@
         <p id="fixOk" class="okText"></p>
 
       </div>
+
+      <div id="scheduleTab" class="note hidden">
+        <h3>לוח משמרות</h3>
+        <div class="scheduleToolbar">
+          <button class="btn ghost" id="btnPrevWeek" type="button">שבוע קודם</button>
+          <button class="btn ghost" id="btnThisWeek" type="button">השבוע</button>
+          <button class="btn ghost" id="btnNextWeek" type="button">שבוע הבא</button>
+          <button class="btn primary" id="btnPrintSchedule" type="button">הדפסה / PDF לעובד</button>
+        </div>
+        <div class="muted" id="weekLabel" style="margin-bottom:10px"></div>
+        <div style="overflow:auto">
+          <table id="scheduleTable" class="scheduleTable"><thead></thead><tbody></tbody></table>
+        </div>
+        <p id="scheduleMsg" class="dangerText"></p>
+        <p id="scheduleOk" class="okText"></p>
+        <div class="divider"></div>
+        <h3>הוספה / עריכת משמרת</h3>
+        <div class="grid2">
+          <div><label>עובד</label><select id="shiftUser"></select></div>
+          <div><label>תאריך</label><input id="shiftDate" type="date" /></div>
+        </div>
+        <div class="grid2" style="margin-top:6px">
+          <div><label>משעה</label><input id="shiftStart" type="time" /></div>
+          <div><label>עד שעה</label><input id="shiftEnd" type="time" /></div>
+        </div>
+        <label>הערה (לא חובה)</label><input id="shiftNote" placeholder="למשל: קבלה / משרד / מהבית" />
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnSaveShift" type="button">שמור משמרת</button>
+          <button class="btn bad" id="btnDeleteShift" type="button">מחק משמרת</button>
+        </div>
+      </div>
     </div>
 
     <div class="footerActions">
@@ -450,7 +489,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
     import {
       getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp,
-      collection, getDocs, query, where, orderBy, Timestamp, collectionGroup
+      collection, getDocs, query, where, orderBy, Timestamp, collectionGroup, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -799,6 +838,13 @@
       fillSelectManage();
       fillSelectReport();
       fillSelectFix();
+      const shiftSel = $("shiftUser");
+      if(shiftSel){
+        shiftSel.innerHTML = "";
+        for(const u of usersCache.filter(x=>x.data.status!=="disabled")){
+          const opt=document.createElement("option"); opt.value=u.id; opt.textContent=u.data.fullName||u.data.email||u.id; shiftSel.appendChild(opt);
+        }
+      }
       renderUsersTable();
 
       if(usersCache.length){
@@ -1071,77 +1117,113 @@
         return;
       }
 
+      let wrapper = null;
       try{
         const html2pdf = await loadHtml2Pdf();
         const fromVal = $("fromDate").value || "";
         const toVal = $("toDate").value || "";
-
-        const wrapper = document.createElement("div");
-        wrapper.dir = "rtl";
-        wrapper.style.cssText = "font-family:Arial,sans-serif;padding:24px;color:#111;background:#fff;direction:rtl;text-align:right;";
-
-        const rowsHtml = lastReportRows.map(r => `
-          <tr>
-            <td>${escapeHtml(r.employeeName)}</td>
-            <td>${escapeHtml(r.date)}</td>
-            <td>${escapeHtml(r.inAt)}</td>
-            <td>${escapeHtml(r.outAt)}</td>
-            <td>${escapeHtml(r.total)}</td>
-          </tr>
-        `).join("");
-
-        // ב-PDF ערבוב עברית עם מספרים/סימני פיסוק באותה שורה עלול ליצור רווחים וסדר תווים משובש.
-        // לכן מפרידים את החלקים לכיווניות עצמאית (bidi isolation).
         const pdfDate = (v) => {
           if(!v) return "";
           const [y,m,d] = v.split("-");
           return `${d}/${m}/${y}`;
         };
 
+        // חשוב: האלמנט נבנה באזור קבוע מחוץ למסך. כך html2canvas לא מושפע
+        // ממיקום הגלילה של מסך המנהל ולא חותך את תחילת/המשך הטבלה.
+        wrapper = document.createElement("div");
+        wrapper.dir = "rtl";
+        wrapper.style.cssText = [
+          "position:fixed",
+          "left:-10000px",
+          "top:0",
+          "width:760px",
+          "box-sizing:border-box",
+          "padding:24px",
+          "font-family:Arial,sans-serif",
+          "font-size:12px",
+          "line-height:1.35",
+          "color:#111",
+          "background:#fff",
+          "direction:rtl",
+          "text-align:right"
+        ].join(";");
+
+        const rowsHtml = lastReportRows.map(r => `
+          <tr style="break-inside:avoid;page-break-inside:avoid">
+            <td>${escapeHtml(r.employeeName)}</td>
+            <td dir="ltr">${escapeHtml(pdfDate(r.date))}</td>
+            <td dir="ltr">${escapeHtml(r.inAt)}</td>
+            <td dir="ltr">${escapeHtml(r.outAt)}</td>
+            <td dir="ltr">${escapeHtml(r.total)}</td>
+          </tr>
+        `).join("");
+
         wrapper.innerHTML = `
-          <h2 style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right;unicode-bidi:isolate">
-            <span>דוח נוכחות</span><span style="margin:0 8px">–</span><span>מכללת הבונים בע״מ</span>
-          </h2>
-          <div style="margin-bottom:16px;font-size:13px;direction:rtl;text-align:right">
-            <span>טווח:</span>
-            <span dir="ltr" style="display:inline-block;margin:0 5px;unicode-bidi:isolate">${escapeHtml(pdfDate(fromVal))}</span>
-            <span>עד</span>
-            <span dir="ltr" style="display:inline-block;margin-right:5px;unicode-bidi:isolate">${escapeHtml(pdfDate(toVal))}</span>
+          <div style="direction:rtl;text-align:right;margin:0 0 16px">
+            <h2 style="margin:0 0 8px;font-size:20px;line-height:1.3">דוח נוכחות – מכללת הבונים בע״מ</h2>
+            <div style="font-size:13px">
+              <b>טווח:</b>
+              <span dir="ltr" style="display:inline-block;margin:0 5px">${escapeHtml(pdfDate(fromVal))}</span>
+              <span>עד</span>
+              <span dir="ltr" style="display:inline-block;margin-right:5px">${escapeHtml(pdfDate(toVal))}</span>
+            </div>
           </div>
-          <table style="width:100%;border-collapse:collapse;direction:rtl;text-align:right">
-            <thead>
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;direction:rtl">
+            <thead style="display:table-header-group">
               <tr>
-                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">עובד</th>
-                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">תאריך</th>
-                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">כניסה</th>
-                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">יציאה</th>
-                <th style="border:1px solid #bbb;padding:8px;background:#f2f2f2">סה״כ</th>
+                <th>עובד</th>
+                <th>תאריך</th>
+                <th>כניסה</th>
+                <th>יציאה</th>
+                <th>סה״כ</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
           </table>
-          <div style="margin-top:14px;font-weight:bold;direction:rtl;text-align:right">
+          <div style="margin-top:14px;font-size:13px;font-weight:bold;direction:rtl;text-align:right;break-inside:avoid;page-break-inside:avoid">
             <span>סה״כ שעות בדוח:</span>
-            <span dir="ltr" style="display:inline-block;margin-right:5px;unicode-bidi:isolate">${escapeHtml($("kpiTotal").textContent)}</span>
+            <span dir="ltr" style="display:inline-block;margin-right:5px">${escapeHtml($("kpiTotal").textContent)}</span>
           </div>
         `;
 
-        wrapper.querySelectorAll("td").forEach(td => td.style.cssText = "border:1px solid #bbb;padding:8px;font-size:12px;");
+        wrapper.querySelectorAll("th,td").forEach(cell => {
+          cell.style.border = "1px solid #bbb";
+          cell.style.padding = "7px 6px";
+          cell.style.verticalAlign = "middle";
+        });
+        wrapper.querySelectorAll("th").forEach(th => {
+          th.style.background = "#f2f2f2";
+          th.style.fontWeight = "700";
+          th.style.textAlign = "right";
+        });
+        wrapper.querySelectorAll("td").forEach(td => td.style.textAlign = "right");
         document.body.appendChild(wrapper);
 
+        // מחכים פריים אחד כדי שהדפדפן יסיים layout לפני צילום האלמנט.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
         await html2pdf().set({
-          margin: 8,
+          margin: [10, 8, 10, 8],
           filename: `attendance_${Date.now()}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: 820
+          },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] }
+          pagebreak: { mode: ["css", "legacy"], avoid: ["tr"] }
         }).from(wrapper).save();
 
-        wrapper.remove();
         $("adminOk").textContent = "✅ קובץ PDF הורד";
       }catch(e){
+        console.error("PDF export failed", e);
         $("adminMsg").textContent = e.message || String(e);
+      }finally{
+        if(wrapper && wrapper.parentNode) wrapper.remove();
       }
     }
 
@@ -1158,8 +1240,40 @@
       $("fixDate").value = ymd(y);
     }
 
-    function showUsersTab(){ show($("usersTab")); hide($("reportsTab")); }
-    function showReportsTab(){ hide($("usersTab")); show($("reportsTab")); }
+    function showUsersTab(){ show($("usersTab")); hide($("reportsTab")); hide($("scheduleTab")); }
+    function showReportsTab(){ hide($("usersTab")); show($("reportsTab")); hide($("scheduleTab")); }
+    function showScheduleTab(){ hide($("usersTab")); hide($("reportsTab")); show($("scheduleTab")); loadScheduleWeek(); }
+
+    let scheduleWeekStart = startOfWeek(new Date());
+    let shiftsCache = new Map();
+    function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; }
+    function shiftDocId(uid,date){ return `${uid}_${date}`; }
+    function weekDates(){ return Array.from({length:7},(_,i)=>{const d=new Date(scheduleWeekStart);d.setDate(d.getDate()+i);return d;}); }
+    function shortDate(d){ return d.toLocaleDateString("he-IL",{weekday:"short",day:"2-digit",month:"2-digit"}); }
+    async function loadScheduleWeek(){
+      $("scheduleMsg").textContent=""; $("scheduleOk").textContent="";
+      const dates=weekDates(), from=ymd(dates[0]), to=ymd(dates[6]);
+      $("weekLabel").textContent=`${dates[0].toLocaleDateString("he-IL")} – ${dates[6].toLocaleDateString("he-IL")}`;
+      const snap=await getDocs(query(collection(db,"shifts"),where("dateYMD",">=",from),where("dateYMD","<=",to),orderBy("dateYMD","asc")));
+      shiftsCache=new Map(); snap.forEach(x=>shiftsCache.set(shiftDocId(x.data().uid,x.data().dateYMD),{id:x.id,...x.data()}));
+      const thead=$("scheduleTable").querySelector("thead"), tbody=$("scheduleTable").querySelector("tbody");
+      thead.innerHTML=`<tr><th>עובד</th>${dates.map(d=>`<th>${escapeHtml(shortDate(d))}</th>`).join("")}</tr>`; tbody.innerHTML="";
+      for(const u of usersCache.filter(x=>x.data.status!=="disabled")){
+        const tr=document.createElement("tr"); tr.innerHTML=`<td><b>${escapeHtml(u.data.fullName||u.data.email||"")}</b></td>`;
+        for(const d of dates){ const date=ymd(d), sh=shiftsCache.get(shiftDocId(u.id,date)); const td=document.createElement("td"); td.innerHTML=sh?`<div class="shiftCell shiftFilled">${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}${sh.note?`<div class="muted">${escapeHtml(sh.note)}</div>`:""}</div>`:`<div class="shiftCell muted">＋</div>`; td.onclick=()=>selectShift(u.id,date); tr.appendChild(td); }
+        tbody.appendChild(tr);
+      }
+    }
+    function selectShift(uid,date){ const sh=shiftsCache.get(shiftDocId(uid,date)); $("shiftUser").value=uid; $("shiftDate").value=date; $("shiftStart").value=sh?.startTime||""; $("shiftEnd").value=sh?.endTime||""; $("shiftNote").value=sh?.note||""; }
+    async function saveShift(){
+      const uid=$("shiftUser").value,dateYMD=$("shiftDate").value,startTime=$("shiftStart").value,endTime=$("shiftEnd").value,note=$("shiftNote").value.trim();
+      if(!uid||!dateYMD||!startTime||!endTime) return $("scheduleMsg").textContent="יש לבחור עובד, תאריך ושעות.";
+      if(endTime<=startTime) return $("scheduleMsg").textContent="שעת הסיום חייבת להיות אחרי שעת ההתחלה.";
+      const u=usersCache.find(x=>x.id===uid); await setDoc(doc(db,"shifts",shiftDocId(uid,dateYMD)),{uid,employeeName:u?.data.fullName||u?.data.email||uid,dateYMD,startTime,endTime,note,updatedAt:serverTimestamp()},{merge:true});
+      $("scheduleOk").textContent="✅ המשמרת נשמרה"; await loadScheduleWeek();
+    }
+    async function deleteShift(){ const uid=$("shiftUser").value,date=$("shiftDate").value; if(!uid||!date) return; await deleteDoc(doc(db,"shifts",shiftDocId(uid,date))); $("shiftStart").value="";$("shiftEnd").value="";$("shiftNote").value="";$("scheduleOk").textContent="✅ המשמרת נמחקה";await loadScheduleWeek(); }
+    function printScheduleForEmployee(){ const uid=$("shiftUser").value,u=usersCache.find(x=>x.id===uid); if(!u)return; const rows=weekDates().map(d=>{const sh=shiftsCache.get(shiftDocId(uid,ymd(d)));return sh?`<tr><td>${escapeHtml(d.toLocaleDateString("he-IL",{weekday:"long"}))}</td><td>${escapeHtml(d.toLocaleDateString("he-IL"))}</td><td>${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}</td><td>${escapeHtml(sh.note||"")}</td></tr>`:""}).join(""); const w=window.open("","_blank"); if(!w)return; w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>משמרות - ${escapeHtml(u.data.fullName||"")}</title><style>body{font-family:Arial;margin:28px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:9px;text-align:right}th{background:#eee}</style></head><body><h2>לוח משמרות - ${escapeHtml(u.data.fullName||"")}</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>יום</th><th>תאריך</th><th>שעות</th><th>הערה</th></tr></thead><tbody>${rows||'<tr><td colspan="4">אין משמרות בשבוע זה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close(); }
 
     // ===== ADMIN: Fix Attendance =====
     function clearFixMessages(){
@@ -1383,6 +1497,13 @@
 
     $("tabUsers").onclick = showUsersTab;
     $("tabReports").onclick = showReportsTab;
+    $("tabSchedule").onclick = showScheduleTab;
+    $("btnPrevWeek").onclick=()=>{scheduleWeekStart.setDate(scheduleWeekStart.getDate()-7);loadScheduleWeek();};
+    $("btnThisWeek").onclick=()=>{scheduleWeekStart=startOfWeek(new Date());loadScheduleWeek();};
+    $("btnNextWeek").onclick=()=>{scheduleWeekStart.setDate(scheduleWeekStart.getDate()+7);loadScheduleWeek();};
+    $("btnSaveShift").onclick=saveShift;
+    $("btnDeleteShift").onclick=deleteShift;
+    $("btnPrintSchedule").onclick=printScheduleForEmployee;
 
     $("btnReloadUsers").onclick = async () => {
       $("usersMsg").textContent = "";
