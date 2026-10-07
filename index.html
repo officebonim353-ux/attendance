@@ -134,6 +134,12 @@
     .shiftCell{cursor:pointer;border-radius:10px;padding:7px;min-height:38px}
     .shiftCell:hover{background:#f3f4f6}
     .shiftFilled{font-weight:800;background:#f9fafb;border:1px solid var(--line)}
+    .scheduleActions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+    .scheduleActions .btn{width:auto;min-width:180px}
+    .shiftEditor{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .shiftEditorHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .shiftEditorHead .btn{width:auto;padding:8px 12px;font-size:13px}
+    @media (max-width:720px){.scheduleActions .btn{width:100%}.scheduleTable th,.scheduleTable td{min-width:105px}}
   </style>
 </head>
 
@@ -445,28 +451,37 @@
           <button class="btn ghost" id="btnPrevWeek" type="button">שבוע קודם</button>
           <button class="btn ghost" id="btnThisWeek" type="button">השבוע</button>
           <button class="btn ghost" id="btnNextWeek" type="button">שבוע הבא</button>
-          <button class="btn primary" id="btnPrintSchedule" type="button">הדפסה / PDF לעובד</button>
         </div>
         <div class="muted" id="weekLabel" style="margin-bottom:10px"></div>
+        <div class="scheduleActions">
+          <button class="btn primary" id="btnPrintGeneralSchedule" type="button">הדפסה / PDF — לוח כללי</button>
+          <button class="btn ghost" id="btnPrintSchedule" type="button">הדפסה / PDF — עובד נבחר</button>
+        </div>
         <div style="overflow:auto">
           <table id="scheduleTable" class="scheduleTable"><thead></thead><tbody></tbody></table>
         </div>
+        <div class="muted" style="margin-top:8px">לחצי על תא בלוח כדי להוסיף או לערוך משמרת.</div>
         <p id="scheduleMsg" class="dangerText"></p>
         <p id="scheduleOk" class="okText"></p>
-        <div class="divider"></div>
-        <h3>הוספה / עריכת משמרת</h3>
-        <div class="grid2">
-          <div><label>עובד</label><select id="shiftUser"></select></div>
-          <div><label>תאריך</label><input id="shiftDate" type="date" /></div>
-        </div>
-        <div class="grid2" style="margin-top:6px">
-          <div><label>משעה</label><input id="shiftStart" type="time" /></div>
-          <div><label>עד שעה</label><input id="shiftEnd" type="time" /></div>
-        </div>
-        <label>הערה (לא חובה)</label><input id="shiftNote" placeholder="למשל: קבלה / משרד / מהבית" />
-        <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="btnSaveShift" type="button">שמור משמרת</button>
-          <button class="btn bad" id="btnDeleteShift" type="button">מחק משמרת</button>
+
+        <div id="shiftEditor" class="shiftEditor hidden">
+          <div class="shiftEditorHead">
+            <h3 style="margin:0">הוספה / עריכת משמרת</h3>
+            <button class="btn ghost" id="btnCloseShiftEditor" type="button">סגור</button>
+          </div>
+          <div class="grid2">
+            <div><label>עובד</label><select id="shiftUser"></select></div>
+            <div><label>תאריך</label><input id="shiftDate" type="date" /></div>
+          </div>
+          <div class="grid2" style="margin-top:6px">
+            <div><label>משעה</label><input id="shiftStart" type="time" /></div>
+            <div><label>עד שעה</label><input id="shiftEnd" type="time" /></div>
+          </div>
+          <label>הערה (לא חובה)</label><input id="shiftNote" placeholder="למשל: קבלה / משרד / מהבית" />
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btnSaveShift" type="button">שמור משמרת</button>
+            <button class="btn bad hidden" id="btnDeleteShift" type="button">מחק משמרת</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1264,16 +1279,32 @@
         tbody.appendChild(tr);
       }
     }
-    function selectShift(uid,date){ const sh=shiftsCache.get(shiftDocId(uid,date)); $("shiftUser").value=uid; $("shiftDate").value=date; $("shiftStart").value=sh?.startTime||""; $("shiftEnd").value=sh?.endTime||""; $("shiftNote").value=sh?.note||""; }
+    function selectShift(uid,date){
+      const sh=shiftsCache.get(shiftDocId(uid,date));
+      $("shiftUser").value=uid; $("shiftDate").value=date; $("shiftStart").value=sh?.startTime||""; $("shiftEnd").value=sh?.endTime||""; $("shiftNote").value=sh?.note||"";
+      show($("shiftEditor"));
+      if(sh) show($("btnDeleteShift")); else hide($("btnDeleteShift"));
+      $("shiftEditor").scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
     async function saveShift(){
       const uid=$("shiftUser").value,dateYMD=$("shiftDate").value,startTime=$("shiftStart").value,endTime=$("shiftEnd").value,note=$("shiftNote").value.trim();
       if(!uid||!dateYMD||!startTime||!endTime) return $("scheduleMsg").textContent="יש לבחור עובד, תאריך ושעות.";
       if(endTime<=startTime) return $("scheduleMsg").textContent="שעת הסיום חייבת להיות אחרי שעת ההתחלה.";
       const u=usersCache.find(x=>x.id===uid); await setDoc(doc(db,"shifts",shiftDocId(uid,dateYMD)),{uid,employeeName:u?.data.fullName||u?.data.email||uid,dateYMD,startTime,endTime,note,updatedAt:serverTimestamp()},{merge:true});
-      $("scheduleOk").textContent="✅ המשמרת נשמרה"; await loadScheduleWeek();
+      $("scheduleOk").textContent="✅ המשמרת נשמרה"; hide($("shiftEditor")); await loadScheduleWeek();
     }
-    async function deleteShift(){ const uid=$("shiftUser").value,date=$("shiftDate").value; if(!uid||!date) return; await deleteDoc(doc(db,"shifts",shiftDocId(uid,date))); $("shiftStart").value="";$("shiftEnd").value="";$("shiftNote").value="";$("scheduleOk").textContent="✅ המשמרת נמחקה";await loadScheduleWeek(); }
+    async function deleteShift(){ const uid=$("shiftUser").value,date=$("shiftDate").value; if(!uid||!date) return; await deleteDoc(doc(db,"shifts",shiftDocId(uid,date))); $("shiftStart").value="";$("shiftEnd").value="";$("shiftNote").value="";hide($("shiftEditor"));$("scheduleOk").textContent="✅ המשמרת נמחקה";await loadScheduleWeek(); }
     function printScheduleForEmployee(){ const uid=$("shiftUser").value,u=usersCache.find(x=>x.id===uid); if(!u)return; const rows=weekDates().map(d=>{const sh=shiftsCache.get(shiftDocId(uid,ymd(d)));return sh?`<tr><td>${escapeHtml(d.toLocaleDateString("he-IL",{weekday:"long"}))}</td><td>${escapeHtml(d.toLocaleDateString("he-IL"))}</td><td>${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}</td><td>${escapeHtml(sh.note||"")}</td></tr>`:""}).join(""); const w=window.open("","_blank"); if(!w)return; w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>משמרות - ${escapeHtml(u.data.fullName||"")}</title><style>body{font-family:Arial;margin:28px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:9px;text-align:right}th{background:#eee}</style></head><body><h2>לוח משמרות - ${escapeHtml(u.data.fullName||"")}</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>יום</th><th>תאריך</th><th>שעות</th><th>הערה</th></tr></thead><tbody>${rows||'<tr><td colspan="4">אין משמרות בשבוע זה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close(); }
+    function printGeneralSchedule(){
+      const dates=weekDates();
+      const head=dates.map(d=>`<th>${escapeHtml(shortDate(d))}</th>`).join("");
+      const body=usersCache.filter(x=>x.data.status!=="disabled").map(u=>{
+        const cells=dates.map(d=>{const sh=shiftsCache.get(shiftDocId(u.id,ymd(d))); return `<td>${sh?`${escapeHtml(sh.startTime)}–${escapeHtml(sh.endTime)}${sh.note?`<br><small>${escapeHtml(sh.note)}</small>`:""}`:"—"}</td>`;}).join("");
+        return `<tr><th>${escapeHtml(u.data.fullName||u.data.email||"")}</th>${cells}</tr>`;
+      }).join("");
+      const w=window.open("","_blank"); if(!w)return;
+      w.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>לוח משמרות כללי</title><style>body{font-family:Arial,sans-serif;direction:rtl;margin:22px;color:#111}h2{margin:0 0 6px}p{margin:0 0 16px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #aaa;padding:7px;text-align:center;font-size:11px;vertical-align:top}th{background:#f2f2f2;font-weight:700}small{font-size:9px;color:#444}@page{size:A4 landscape;margin:10mm}@media print{body{margin:0}}</style></head><body><h2>לוח משמרות כללי – מכללת הבונים בע״מ</h2><p>${escapeHtml($("weekLabel").textContent)}</p><table><thead><tr><th>עובד</th>${head}</tr></thead><tbody>${body||'<tr><td colspan="8">אין עובדים להצגה</td></tr>'}</tbody></table><script>window.onload=()=>window.print()</`+`script></body></html>`); w.document.close();
+    }
 
     // ===== ADMIN: Fix Attendance =====
     function clearFixMessages(){
@@ -1503,7 +1534,9 @@
     $("btnNextWeek").onclick=()=>{scheduleWeekStart.setDate(scheduleWeekStart.getDate()+7);loadScheduleWeek();};
     $("btnSaveShift").onclick=saveShift;
     $("btnDeleteShift").onclick=deleteShift;
+    $("btnCloseShiftEditor").onclick=()=>hide($("shiftEditor"));
     $("btnPrintSchedule").onclick=printScheduleForEmployee;
+    $("btnPrintGeneralSchedule").onclick=printGeneralSchedule;
 
     $("btnReloadUsers").onclick = async () => {
       $("usersMsg").textContent = "";
